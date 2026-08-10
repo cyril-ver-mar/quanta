@@ -1,0 +1,13 @@
+---
+description: Streamlit OOP and session_state conventions
+alwaysApply: true
+---
+
+# OOP and Streamlit
+
+- Initialize every `st.session_state` key in the entrypoint before pages use it.
+- Read with `.get("key", default)`.
+- Cache heavy resources with `@st.cache_resource` when appropriate.
+- Long actions: `try/except`, user-visible error, progress when > ~5s.
+- Never assign to a widget key after the widget was instantiated — use a `_pending` key + rerun.
+- Prefer specific exceptions; never bare `except:`.

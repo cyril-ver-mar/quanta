@@ -1,0 +1,14 @@
+.DS_Store
+.idea/
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+# Clarify with user (playbook 06) before finalizing:
+# data/
+# exports/
+# *.db
+# vendor/
+*.log
+.ipynb_checkpoints/

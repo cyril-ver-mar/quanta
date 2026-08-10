@@ -1,0 +1,11 @@
+---
+description: Short Code Complete habits for modules and errors
+alwaysApply: true
+---
+
+# Code Complete (short)
+
+- One purpose per module/routine; semantic names.
+- Hide framework / DB details behind small interfaces.
+- Validate inputs; log failures; never swallow exceptions.
+- If swapping storage or UI toolkits, only the adapter layer should change.

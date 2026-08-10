@@ -1,0 +1,12 @@
+---
+description: Maintain dated Streamlit instruction snapshot when architecture changes
+alwaysApply: true
+---
+
+# Living instruction document
+
+If the project uses a living guide (see deploy checklist B2):
+
+- Keep `docs/` or `Legacy/Instruction_Streamlit_YYYY-MM-DD.md` up to date when layers, pages, or public service APIs change.
+- Include: purpose, folder tree, 5-layer map, decisions pointer, AI do/don’t.
+- Keep a universal draft template if one exists; don’t delete it when specializing.

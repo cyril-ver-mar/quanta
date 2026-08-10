@@ -1,0 +1,23 @@
+---
+description: 5-layer Streamlit architecture — import direction and folder map
+alwaysApply: true
+---
+
+# Architecture (5 layers)
+
+Follow `docs/AI-deployment/ARCHITECTURE.md` (or relocated kit path).
+
+```
+app.py / pages/     # entry + multi-page
+src/utils/          # L1 infrastructure
+src/core/           # L2 domain (no Streamlit, no DB)
+src/db/             # L3 data access
+src/services/       # L4 orchestration
+src/ui/             # L5 presentation components
+```
+
+Import only downward: `ui → services → db → core → utils`.
+
+- UI must not own algorithms or DB writes.
+- Domain must not import Streamlit.
+- One clear responsibility per module.

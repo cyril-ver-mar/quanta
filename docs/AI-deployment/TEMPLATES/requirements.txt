@@ -1,0 +1,5 @@
+streamlit>=1.28
+# Add domain libs as needed, e.g.:
+# rdkit
+# pandas
+# pytest

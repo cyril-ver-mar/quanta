@@ -1,0 +1,12 @@
+---
+description: EXAMPLE — packaging / freeze builds deferred (scripts-first)
+alwaysApply: true
+---
+
+# Builds deferred (example rule)
+
+Use only if the user chose packaging deferred (checklist F4).
+
+- Prefer `install` / `run` scripts first.
+- Optional vendor binaries and cloud keys must degrade gracefully.
+- Do not block feature work on freeze builds.

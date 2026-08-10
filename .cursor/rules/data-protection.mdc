@@ -1,0 +1,12 @@
+---
+description: Backups, secrets, and logging — adapt paths after deploy checklist E*
+alwaysApply: true
+---
+
+# Data protection
+
+- Before destructive DB or mass mutations: create a backup first (one per batch).
+- Prefer transactional commits for related writes.
+- Secrets: only in the location agreed in `docs/DECISIONS.md` (never hard-code).
+- Do not commit `venv/`, secrets files, or bulky runtime data unless the user explicitly decided otherwise.
+- Failures must leave a log trail; silent failure is forbidden.
