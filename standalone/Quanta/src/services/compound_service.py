@@ -96,6 +96,12 @@ class CompoundService:
     def list_compounds(self) -> list[Compound]:
         return self.repo.list_all()
 
+    def list_compounds_for_project(self, compound_ids: list[int]) -> list[Compound]:
+        if not compound_ids:
+            return []
+        id_set = set(compound_ids)
+        return [c for c in self.repo.list_all() if c.id in id_set]
+
     def get(self, compound_id: int) -> Compound | None:
         return self.repo.get(compound_id)
 

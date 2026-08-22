@@ -16,18 +16,27 @@ from src.core.models import JobStatus
 from src.services.gaussian_runner import GaussianRunner, gaussian_available
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
+from src.ui.components.workflow_steps import render_workflow_steps
+from src.ui.project_state import get_project, project_compound_ids
+from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.paths import job_dir
 from src.core.dscf import StepStatus
 from src.services.gaussian_parser import parse_gaussian_log
-from src.ui.components.workflow_steps import render_workflow_steps
 
 st.set_page_config(page_title="Quanta · Queue", layout="wide")
+init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_queue", lang))
 st.caption(t("queue_dscf_caption", lang))
+
+if get_project() is None:
+    st.info(t("need_project", lang))
+    st.stop()
+
+pids = project_compound_ids()
 
 svc = JobService()
 can_run = gaussian_available(settings)
@@ -47,7 +56,7 @@ if c3.button("Resume paused"):
     svc.resume_queue()
     st.rerun()
 
-jobs = svc.list_jobs()
+jobs = svc.list_jobs_for_compounds(pids)
 if not jobs:
     st.info("No jobs.")
 else:

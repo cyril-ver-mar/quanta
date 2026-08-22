@@ -18,19 +18,28 @@ from src.core.dscf import StepStatus
 from src.db.repositories import CompoundRepository, JobRepository
 from src.services.job_service import JobService
 from src.services.results_service import ResultsService
+from src.services import project_service
 from src.ui.components.sidebar import render_sidebar
 from src.ui.components.workflow_steps import render_workflow_steps
+from src.ui.project_state import get_project, project_compound_ids, set_project
+from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.paths import FIXTURES_DIR, job_dir
 
 st.set_page_config(page_title="Quanta · Results", layout="wide")
+init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_results", lang))
 st.caption(t("results_dscf_caption", lang))
 
-jobs = JobService().list_jobs()
+if get_project() is None:
+    st.info(t("need_project", lang))
+    st.stop()
+
+pids = project_compound_ids()
+jobs = JobService().list_jobs_for_compounds(pids)
 results = ResultsService()
 
 st.subheader(t("results_fixture", lang))
@@ -70,6 +79,10 @@ if st.button(t("results_fixture_btn", lang)):
         jrepo.update(job)
     st.info(t("results_fixture_note", lang).format(job_id=jid))
     st.session_state.selected_job_id = jid
+    proj = get_project()
+    if proj is not None:
+        project_service.add_compound_to_project(proj, cid, label="melanine")
+        set_project(project_service.load_project(proj.id))
 
 if not jobs:
     st.info(t("workflow_no_jobs", lang))

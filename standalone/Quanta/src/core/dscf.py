@@ -249,6 +249,11 @@ def next_runnable_step(steps: list[DscfStep]) -> DscfStep | None:
     return None
 
 
+def is_dscf_workflow(steps: list[DscfStep]) -> bool:
+    """True when steps include the neutral SP required for ΔSCF curation."""
+    return bool(steps) and any(s.kind == StepKind.NEUTRAL_SP for s in steps)
+
+
 def serialize_steps(steps: list[DscfStep]) -> list[dict[str, Any]]:
     return [s.to_dict() for s in steps]
 

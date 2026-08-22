@@ -15,13 +15,20 @@ if str(ROOT) not in sys.path:
 from src.services.archive_service import ArchiveService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
+from src.ui.project_state import get_project, project_compound_ids
+from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 
 st.set_page_config(page_title="Quanta · Archive", layout="wide")
+init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_archive", lang))
+
+if get_project() is None:
+    st.info(t("need_project", lang))
+    st.stop()
 
 st.markdown(
     """
@@ -31,7 +38,7 @@ to analyze without Gaussian.
 )
 
 svc = ArchiveService()
-jobs = JobService().list_jobs()
+jobs = JobService().list_jobs_for_compounds(project_compound_ids())
 ids = [j.id for j in jobs if j.id is not None]
 selected = st.multiselect("Jobs to export (empty = all on disk)", options=ids, default=ids[:5])
 

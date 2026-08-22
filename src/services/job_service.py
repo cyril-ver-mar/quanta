@@ -59,9 +59,6 @@ class JobService:
         mol = self.compounds.load_molecule(compound)
         atoms = mol_to_atoms(mol)
         steps = build_workflow_steps(atoms, dscf, job_id)
-        job.meta_json["steps"] = serialize_steps(steps)
-        job.meta_json["total_steps"] = len(steps)
-
         opt = steps[0]
         opt_gjf = jdir / "input" / opt.gjf_name
         spec = GaussianJobSpec(
@@ -83,6 +80,8 @@ class JobService:
         job = self.repo.get(job_id)
         assert job is not None
         job.work_path = str(jdir)
+        job.meta_json["steps"] = serialize_steps(steps)
+        job.meta_json["total_steps"] = len(steps)
         job.meta_json["current_gjf"] = str(opt_gjf)
         self.repo.update(job)
         logger.info("Created ΔSCF workflow job %s (%d steps)", job_id, len(steps))
@@ -156,6 +155,9 @@ class JobService:
 
     def list_jobs(self) -> list[Job]:
         return self.repo.list_all()
+
+    def list_jobs_for_compounds(self, compound_ids: list[int]) -> list[Job]:
+        return self.repo.list_by_compound_ids(compound_ids)
 
     def get(self, job_id: int) -> Job | None:
         return self.repo.get(job_id)

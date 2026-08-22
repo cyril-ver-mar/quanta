@@ -6,6 +6,7 @@ import streamlit as st
 
 from src.services.gaussian_runner import gaussian_available
 from src.ui.components.update_banner import render_update_banner
+from src.ui.project_state import get_project
 from src.utils.cancel import request_hard_stop, request_soft_cancel
 from src.utils.config import AppSettings
 from src.utils.i18n import t
@@ -30,6 +31,9 @@ def render_sidebar(settings: AppSettings) -> AppSettings:
         st.sidebar.warning(t("no_gaussian", lang))
 
     st.sidebar.divider()
+    project = get_project()
+    if project:
+        st.sidebar.caption(f"📁 {project.name}")
     if st.sidebar.button(t("soft_cancel", lang)):
         request_soft_cancel()
         st.sidebar.success("Soft cancel requested")

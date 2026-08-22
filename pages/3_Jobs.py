@@ -16,13 +16,22 @@ from src.services.compound_service import CompoundService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
 from src.ui.components.workflow_steps import render_workflow_overview, render_workflow_steps
+from src.ui.project_state import get_project, project_compound_ids
+from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 
 st.set_page_config(page_title="Quanta · Jobs", layout="wide")
+init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_jobs", lang))
+
+if get_project() is None:
+    st.info(t("need_project", lang))
+    st.stop()
+
+pids = project_compound_ids()
 
 dscf = DscfSettings(
     functional=settings.dscf_functional,
@@ -38,7 +47,7 @@ render_workflow_overview(lang)
 st.divider()
 st.subheader(t("workflow_create", lang))
 
-compounds = CompoundService().list_compounds()
+compounds = CompoundService().list_compounds_for_project(pids)
 jobs = JobService()
 
 if not compounds:
@@ -73,7 +82,7 @@ else:
 st.divider()
 st.subheader(t("workflow_existing", lang))
 
-all_jobs = jobs.list_jobs()
+all_jobs = jobs.list_jobs_for_compounds(pids)
 if not all_jobs:
     st.caption(t("workflow_no_jobs", lang))
 else:

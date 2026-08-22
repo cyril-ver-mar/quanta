@@ -130,6 +130,20 @@ class JobRepository:
         finally:
             conn.close()
 
+    def list_by_compound_ids(self, compound_ids: list[int]) -> list[Job]:
+        if not compound_ids:
+            return []
+        conn = connect()
+        try:
+            qs = ",".join("?" for _ in compound_ids)
+            rows = conn.execute(
+                f"SELECT * FROM jobs WHERE compound_id IN ({qs}) ORDER BY id DESC",
+                tuple(compound_ids),
+            ).fetchall()
+            return [self._row(r) for r in rows]
+        finally:
+            conn.close()
+
     def list_by_status(self, *statuses: JobStatus) -> list[Job]:
         conn = connect()
         try:

@@ -13,6 +13,7 @@ from src.core.dscf import (
     StepStatus,
     assign_core_orbitals,
     homo_orbital_index,
+    is_dscf_workflow,
     list_xps_atoms,
     next_runnable_step,
 )
@@ -67,7 +68,22 @@ class GaussianRunner:
         queued = self.repo.list_by_status(JobStatus.QUEUED)
         if not queued:
             return None
-        job = queued[0]
+
+        job = None
+        for candidate in queued:
+            steps = self.jobs.get_steps(candidate.id or 0)
+            if is_dscf_workflow(steps):
+                job = candidate
+                break
+            assert candidate.id is not None
+            candidate.status = JobStatus.FAILED
+            candidate.error = (
+                "Not a ΔSCF workflow job — delete this job and create a new workflow on the Jobs page."
+            )
+            self.repo.update(candidate)
+
+        if job is None:
+            return None
         assert job.id is not None
         job.status = JobStatus.RUNNING
         self.repo.update(job)
@@ -77,7 +93,7 @@ class GaussianRunner:
                 steps = self.jobs.get_steps(job.id)
                 step = next_runnable_step(steps)
                 if step is None:
-                    if all(s.status == StepStatus.COMPLETED for s in steps):
+                    if steps and all(s.status == StepStatus.COMPLETED for s in steps):
                         job.status = JobStatus.COMPLETED
                         self.results.curate_job(job.id, settings)
                     else:

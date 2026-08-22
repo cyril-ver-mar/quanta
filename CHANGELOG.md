@@ -5,6 +5,14 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.7] — 2026-08-22
+
+### Added
+- **Project page** (XPS-Deconv style): create/load/delete projects; compound entries in JSON + SQLite index; all workflow pages scoped to active project.
+
+### Fixed
+- **Workflow run failure** — `create_job` now saves ΔSCF step list to the database (steps were dropped on reload before update).
+
 ## [1.0.6] — 2026-08-22
 
 ### Fixed

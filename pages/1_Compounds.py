@@ -13,14 +13,23 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.services.compound_service import CompoundService
+from src.services import project_service
 from src.ui.components.sidebar import render_sidebar
+from src.ui.project_state import get_project, project_compound_ids, set_project
+from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 
 st.set_page_config(page_title="Quanta · Compounds", layout="wide")
+init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_compounds", lang))
+
+project = get_project()
+if project is None:
+    st.info(t("need_project", lang))
+    st.stop()
 
 svc = CompoundService()
 uploaded = st.file_uploader(t("upload", lang), type=["mol2", "pdb", "sdf", "mol"])
@@ -36,6 +45,9 @@ if uploaded and st.button("Import"):
         tmp_path = Path(tmp.name)
     try:
         cid = svc.import_file(tmp_path, name=name or Path(uploaded.name).stem, charge=int(charge), multiplicity=int(mult))
+        project_service.add_compound_to_project(project, cid, label=name or Path(uploaded.name).stem)
+        set_project(project_service.load_project(project.id))
+        st.session_state.selected_compound_id = cid
         st.success(f"Imported compound id={cid}")
     except Exception as exc:
         st.error(str(exc))
@@ -43,7 +55,7 @@ if uploaded and st.button("Import"):
         tmp_path.unlink(missing_ok=True)
 
 st.subheader("Library")
-rows = svc.list_compounds()
+rows = svc.list_compounds_for_project(project_compound_ids())
 if not rows:
     st.info("No compounds yet.")
 else:

@@ -15,18 +15,26 @@ if str(ROOT) not in sys.path:
 from src.services.review_service import ReviewService
 from src.ui.components.mol_viewer import render_molecule_3d
 from src.ui.components.sidebar import render_sidebar
+from src.ui.project_state import get_project, project_compound_ids
+from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.services.compound_service import CompoundService
 from src.services.job_service import JobService
 
 st.set_page_config(page_title="Quanta · Work review", layout="wide")
+init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_work_review", lang))
 st.caption("Inspect 3D geometry, charge/multiplicity, and linked jobs before queuing Gaussian.")
 
-compounds = CompoundService().list_compounds()
+if get_project() is None:
+    st.info(t("need_project", lang))
+    st.stop()
+
+compound_ids = set(project_compound_ids())
+compounds = [c for c in CompoundService().list_compounds() if c.id in compound_ids]
 if not compounds:
     st.info(t("review_no_compounds", lang))
     st.stop()
