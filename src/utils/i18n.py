@@ -81,6 +81,55 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "queue_run_next": "Run next workflow",
         "queue_running": "Running Gaussian steps…",
         "queue_live_log": "Live / last step log",
+        "update_available": "**{new}** is available (you have {old}).",
+        "update_open_release": "Open release on GitHub",
+        "update_install_expander": "Download & install update",
+        "update_install_help": (
+            "Replaces app files from the release zip. Keeps your data/, exports/, and venv/. "
+            "Restart the app afterward; re-run install if dependencies changed."
+        ),
+        "update_confirm": "I understand app files will be overwritten (data/ and venv/ kept).",
+        "update_download_install": "Download & install now",
+        "update_working": "Downloading and installing…",
+        "update_installed": "Update installed. Please stop and restart the app.",
+        "update_restart_hint": "Close the terminal or stop Streamlit, then run again.",
+        "update_failed": "Update failed: {err}",
+        "update_no_zip": (
+            "This release has no standalone .zip asset — open the release page and download manually."
+        ),
+        "update_dismiss": "Dismiss",
+        "update_section": "Updates",
+        "update_not_configured": (
+            "GitHub repo not set. Put `owner/name` in the `GITHUB_REPO` file "
+            "(or set QUANTA_GITHUB_REPO)."
+        ),
+        "update_repo": "Repository: `{repo}`",
+        "update_local_remote": "Local: **{local}** · Latest on GitHub: **{remote}**",
+        "update_up_to_date": "You are on the latest release.",
+        "update_check_now": "Check for updates now",
+        "update_check_settings_hint": "Open **Settings → Updates** for status and retry.",
+        "update_check_detail": "Technical detail: `{detail}`",
+        "update_local_only": "Installed version: **{local}** (latest on GitHub unknown).",
+        "update_check_network": (
+            "Could not connect to GitHub to check for updates. Check internet, proxy, or firewall. ({detail})"
+        ),
+        "update_check_timeout": (
+            "GitHub did not respond in time while checking for updates. Try again later. ({detail})"
+        ),
+        "update_check_ssl": (
+            "Secure connection to GitHub failed (SSL/certificate). A corporate proxy may intercept HTTPS. ({detail})"
+        ),
+        "update_check_no_releases": (
+            "GitHub has no latest release for `{repo}` (repository missing or no releases). ({detail})"
+        ),
+        "update_check_rate_limit": (
+            "GitHub refused the update check (rate limit or access denied). Try again later. ({detail})"
+        ),
+        "update_check_http": "GitHub returned an HTTP error during the update check. ({detail})",
+        "update_check_bad_response": (
+            "GitHub returned an unexpected response during the update check. ({detail})"
+        ),
+        "update_check_unexpected": "Update check failed with an unexpected error. ({detail})",
     },
     "ru": {
         "app_title": "Quanta",
@@ -160,10 +209,65 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "queue_run_next": "Запустить workflow",
         "queue_running": "Идёт расчёт Gaussian…",
         "queue_live_log": "Текущий / последний log",
+        "update_available": "Доступна версия **{new}** (у вас {old}).",
+        "update_open_release": "Открыть релиз на GitHub",
+        "update_install_expander": "Скачать и установить обновление",
+        "update_install_help": (
+            "Заменяет файлы приложения из zip-релиза. Сохраняет data/, exports/ и venv/. "
+            "После этого перезапустите приложение; при смене зависимостей снова запустите install."
+        ),
+        "update_confirm": "Понимаю: файлы приложения будут перезаписаны (data/ и venv/ сохранятся).",
+        "update_download_install": "Скачать и установить сейчас",
+        "update_working": "Скачивание и установка…",
+        "update_installed": "Обновление установлено. Остановите и перезапустите приложение.",
+        "update_restart_hint": "Закройте терминал или остановите Streamlit, затем запустите снова.",
+        "update_failed": "Ошибка обновления: {err}",
+        "update_no_zip": (
+            "У этого релиза нет standalone .zip — откройте страницу релиза и скачайте вручную."
+        ),
+        "update_dismiss": "Скрыть",
+        "update_section": "Обновления",
+        "update_not_configured": (
+            "Репозиторий GitHub не задан. Укажите `owner/name` в файле `GITHUB_REPO` "
+            "(или переменной QUANTA_GITHUB_REPO)."
+        ),
+        "update_repo": "Репозиторий: `{repo}`",
+        "update_local_remote": "Локально: **{local}** · На GitHub: **{remote}**",
+        "update_up_to_date": "У вас последняя версия.",
+        "update_check_now": "Проверить обновления сейчас",
+        "update_check_settings_hint": "Откройте **Настройки → Обновления**, чтобы увидеть статус и повторить проверку.",
+        "update_check_detail": "Техническая деталь: `{detail}`",
+        "update_local_only": "Установленная версия: **{local}** (последняя на GitHub неизвестна).",
+        "update_check_network": (
+            "Не удалось подключиться к GitHub для проверки обновлений. Проверьте интернет, прокси или брандмауэр. ({detail})"
+        ),
+        "update_check_timeout": (
+            "GitHub не ответил вовремя при проверке обновлений. Попробуйте позже. ({detail})"
+        ),
+        "update_check_ssl": (
+            "Не удалось установить защищённое соединение с GitHub (SSL/сертификат). Корпоративный прокси может перехватывать HTTPS. ({detail})"
+        ),
+        "update_check_no_releases": (
+            "На GitHub нет последнего релиза для `{repo}` (репозиторий не найден или нет релизов). ({detail})"
+        ),
+        "update_check_rate_limit": (
+            "GitHub отклонил проверку обновлений (лимит запросов или нет доступа). Попробуйте позже. ({detail})"
+        ),
+        "update_check_http": "GitHub вернул HTTP-ошибку при проверке обновлений. ({detail})",
+        "update_check_bad_response": (
+            "GitHub вернул неожиданный ответ при проверке обновлений. ({detail})"
+        ),
+        "update_check_unexpected": "Проверка обновлений завершилась неожиданной ошибкой. ({detail})",
     },
 }
 
 
-def t(key: str, lang: str = "en") -> str:
+def t(key: str, lang: str = "en", **fmt) -> str:
     table = STRINGS.get(lang) or STRINGS["en"]
-    return table.get(key) or STRINGS["en"].get(key, key)
+    text = table.get(key) or STRINGS["en"].get(key, key)
+    if fmt:
+        try:
+            return text.format(**fmt)
+        except (KeyError, ValueError):
+            return text
+    return text

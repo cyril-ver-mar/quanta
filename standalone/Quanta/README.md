@@ -1,33 +1,27 @@
-# Quanta
+# Quanta — standalone install
 
-Gaussian 09 DFT jobs and **ΔSCF XPS** analysis (gas-phase molecules).
+End-user copy of Quanta (Gaussian 09 · ΔSCF XPS).  
+Unpack the full standalone zip so this folder contains `app.py`, `src/`, `pages/`, and these scripts.
 
-## Install & run
+## Install
 
-### macOS / Linux
+| Platform | Command |
+|----------|---------|
+| macOS / Linux | `./install.sh` |
+| Windows | `install.bat` |
 
-```bash
-./install.sh
-./run.sh
-```
+Requires **Python 3.11** on PATH.
 
-### Windows
+## Run
 
-```bat
-install.bat
-run.bat
-```
+| Platform | Command |
+|----------|---------|
+| macOS / Linux | `./run.sh` |
+| Windows | `run.bat` |
 
-Open in browser: http://localhost:8501  
-If the browser does not open automatically, paste the URL manually.
+If the browser does not open: http://localhost:8501
 
-## Workflow
+## Notes
 
-1. **Settings** — Gaussian path (Windows), functional, FWHM  
-2. **Compounds** — import mol2 / pdb / sdf  
-3. **Work review** — check 3D structure  
-4. **Jobs** — create ΔSCF workflow  
-5. **Queue** — run Gaussian steps  
-6. **Results** — binding energies and spectra  
-
-Requires **Python 3.11**.
+- **Windows:** set the Gaussian executable path on the Settings page to run calculations.
+- **macOS:** analyze-only mode (import archives / parse logs) unless Gaussian is installed locally.

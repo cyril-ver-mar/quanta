@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.services.gaussian_runner import gaussian_available
+from src.ui.components.update_banner import render_update_banner
 from src.utils.cancel import request_hard_stop, request_soft_cancel
 from src.utils.config import AppSettings
 from src.utils.i18n import t
@@ -36,4 +37,5 @@ def render_sidebar(settings: AppSettings) -> AppSettings:
         request_hard_stop()
         st.sidebar.error("Hard stop requested")
     st.sidebar.caption(version_label())
+    render_update_banner(lang)
     return settings

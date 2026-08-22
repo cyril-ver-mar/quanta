@@ -12,6 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.ui.components.sidebar import render_sidebar
+from src.ui.components.update_banner import render_update_settings
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.version import version_label
@@ -49,3 +50,6 @@ settings.dscf_apply_c1s_shift = st.checkbox(
 if st.button(t("save", lang)):
     settings.save()
     st.success(t("settings_saved", lang))
+
+st.divider()
+render_update_settings(lang)

@@ -5,6 +5,14 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.5] — 2026-08-22
+
+### Added
+- **In-app updates** (XPS-Deconv style): GitHub Releases check on launch, sidebar banner, Settings → Updates, one-click install from standalone zip (preserves `data/`, `exports/`, `venv/`).
+
+### Changed
+- **run.bat** — Claude-style terminal UI (terracotta banner, colored status, boxed errors, version line, pause on failure).
+
 ## [1.0.4] — 2026-08-22
 
 ### Fixed
