@@ -20,6 +20,7 @@ from src.services.job_service import JobService
 from src.services.results_service import ResultsService
 from src.services import project_service
 from src.ui.components.sidebar import render_sidebar
+from src.ui.components.log_viewer import list_job_logs, render_gaussian_log_viewer
 from src.ui.components.workflow_steps import render_workflow_steps
 from src.ui.project_state import get_project, project_compound_ids, set_project
 from src.ui.session_keys import init_session_state
@@ -182,3 +183,16 @@ else:
                 xaxis_autorange="reversed",
             )
             st.plotly_chart(fig, use_container_width=True)
+
+    job_obj = job_svc.get(jid)
+    gauss_cwd = (job_obj.meta_json or {}).get("gaussian_cwd") if job_obj else None
+    logs = list_job_logs(job_dir(jid), gaussian_cwd=gauss_cwd)
+    err = ""
+    if job_obj and job_obj.error:
+        err = job_obj.error
+    elif steps:
+        for s in steps:
+            if s.error:
+                err = s.error
+                break
+    render_gaussian_log_viewer(logs, lang, job_error=err)

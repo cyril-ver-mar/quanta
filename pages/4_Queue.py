@@ -12,9 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.core.models import JobStatus
+from src.core.dscf import StepStatus
 from src.services.gaussian_runner import GaussianRunner, gaussian_available
 from src.services.job_service import JobService
+from src.services.gaussian_parser import parse_gaussian_log
+from src.ui.components.log_viewer import list_job_logs, render_gaussian_log_viewer
 from src.ui.components.sidebar import render_sidebar
 from src.ui.components.workflow_steps import render_workflow_steps
 from src.ui.project_state import get_project, project_compound_ids
@@ -22,8 +24,6 @@ from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.paths import job_dir
-from src.core.dscf import StepStatus
-from src.services.gaussian_parser import parse_gaussian_log
 
 st.set_page_config(page_title="Quanta · Queue", layout="wide")
 init_session_state()
@@ -77,6 +77,7 @@ else:
     st.dataframe(df, use_container_width=True)
 
     selected = st.number_input(t("job_id", lang), min_value=1, step=1, value=int(jobs[0].id or 1))
+    job = next((j for j in jobs if j.id == int(selected)), None)
     steps = svc.get_steps(int(selected))
     if steps:
         st.subheader(t("workflow_title", lang))
@@ -101,23 +102,40 @@ else:
         st.rerun()
 
     jdir = job_dir(int(selected))
-    step_logs = [s.log_name for s in steps if s.status == StepStatus.RUNNING] if steps else []
-    log_name = step_logs[0] if step_logs else None
-    log_path = jdir / "raw" / log_name if log_name else None
-    if log_path is None or not log_path.exists():
-        candidates = list((jdir / "raw").glob("*.log")) + list((jdir / "raw").glob("*.LOG"))
-        log_path = max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
-    if log_path and log_path.exists():
-        parsed = parse_gaussian_log(log_path)
-        st.subheader(t("queue_live_log", lang))
-        st.caption(str(log_path.name))
-        st.write(
-            {
-                t("monitor_opt_steps", lang): parsed.opt_steps,
-                t("monitor_progress", lang): parsed.progress_estimate,
-                t("monitor_scf_points", lang): len(parsed.scf_energies_ha),
-                t("monitor_normal_term", lang): parsed.normal_termination,
-            }
-        )
+    gauss_cwd = (job.meta_json or {}).get("gaussian_cwd") if job else None
+    logs = list_job_logs(jdir, gaussian_cwd=gauss_cwd)
+
+    preferred = None
+    if steps:
+        failed = [s for s in steps if s.status == StepStatus.FAILED and s.log_name]
+        running = [s for s in steps if s.status == StepStatus.RUNNING and s.log_name]
+        pick = (failed or running or [s for s in reversed(steps) if s.log_name])
+        if pick:
+            candidate = jdir / "raw" / pick[0].log_name
+            if candidate.exists():
+                preferred = candidate
+
+    if preferred is None and logs:
+        preferred = logs[0]
+
+    job_error = ""
+    if job and job.error:
+        job_error = job.error
+    elif steps:
+        for s in steps:
+            if s.error:
+                job_error = s.error
+                break
+
+    # Compact SCF chart when available
+    if preferred and preferred.exists():
+        parsed = parse_gaussian_log(preferred)
         if parsed.scf_energies_ha:
             st.line_chart(pd.DataFrame({"SCF_ha": parsed.scf_energies_ha}))
+
+    render_gaussian_log_viewer(
+        logs,
+        lang,
+        preferred=preferred,
+        job_error=job_error,
+    )

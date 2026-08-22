@@ -398,7 +398,10 @@ class GaussianRunner:
                 step.error = ""
             else:
                 step.status = StepStatus.FAILED
-                step.error = "; ".join(parsed.raw_errors) or "Gaussian did not terminate normally"
+                snippet = (parsed.raw_errors[0] if parsed.raw_errors else "").strip()
+                if len(snippet) > 900:
+                    snippet = snippet[:900] + "..."
+                step.error = snippet or "Gaussian did not terminate normally"
 
             for i, s in enumerate(steps):
                 if s.key == step.key:

@@ -15,7 +15,23 @@ ERROR_RE = re.compile(r"Error termination", re.I)
 STEP_RE = re.compile(r"Step number\s+(\d+)", re.I)
 OCC_LINE_RE = re.compile(r"Alpha\s+occ\.\s+eigenvalues\s+--\s+(.+)", re.I)
 VIRT_LINE_RE = re.compile(r"Alpha\s+virt\.\s+eigenvalues\s+--\s+(.+)", re.I)
-HOMO_LUMO_GAP_HINT = re.compile(r"eigenvalues", re.I)
+
+_DIAGNOSTIC_LINE_RES = (
+    re.compile(r"Error termination", re.I),
+    re.compile(r"Erroneous write", re.I),
+    re.compile(r"FileIO operation on non-existent file", re.I),
+    re.compile(r"NtrErr", re.I),
+    re.compile(r"linkage\s+\d+\s+failed", re.I),
+    re.compile(r"End of file in", re.I),
+    re.compile(r"Convergence failure", re.I),
+    re.compile(r"Bend failed", re.I),
+    re.compile(r"Unknown combination", re.I),
+    re.compile(r"QPErr", re.I),
+    re.compile(r"galloc:", re.I),
+    re.compile(r"No such file or directory", re.I),
+    re.compile(r"Illegal ISum", re.I),
+    re.compile(r"Consistent order failure", re.I),
+)
 
 
 @dataclass
@@ -33,15 +49,48 @@ class ParseResult:
     progress_estimate: float = 0.0
 
 
+def read_log_text(path: Path | str) -> str:
+    return Path(path).read_text(encoding="utf-8", errors="replace")
+
+
+def tail_lines(text: str, n: int = 120) -> str:
+    lines = text.splitlines()
+    if len(lines) <= n:
+        return text
+    return "\n".join(lines[-n:])
+
+
+def extract_error_snippets(text: str, *, context: int = 4, max_snippets: int = 6) -> list[str]:
+    """Return short windows around diagnostic lines in a Gaussian log."""
+    lines = text.splitlines()
+    snippets: list[str] = []
+    seen_starts: set[int] = set()
+    for i, line in enumerate(lines):
+        if not any(rx.search(line) for rx in _DIAGNOSTIC_LINE_RES):
+            continue
+        start = max(0, i - context)
+        if start in seen_starts:
+            continue
+        seen_starts.add(start)
+        end = min(len(lines), i + context + 6)
+        block = "\n".join(lines[start:end]).strip()
+        if block:
+            snippets.append(block)
+        if len(snippets) >= max_snippets:
+            break
+    if not snippets and ERROR_RE.search(text):
+        snippets.append("Error termination found in log")
+    return snippets
+
+
 def _floats(chunk: str) -> list[float]:
     return [float(x) for x in chunk.split() if re.fullmatch(r"[+-]?\d+\.\d+", x)]
 
 
 def parse_gaussian_log(path: Path | str) -> ParseResult:
-    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    text = read_log_text(path)
     result = ParseResult(success=False, normal_termination=bool(NORMAL_RE.search(text)))
-    if ERROR_RE.search(text):
-        result.raw_errors.append("Error termination found in log")
+    result.raw_errors = extract_error_snippets(text)
 
     for m in SCF_RE.finditer(text):
         result.method = m.group(1)
