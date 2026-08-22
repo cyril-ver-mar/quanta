@@ -79,18 +79,49 @@ def ensure_opt_route(route: str, *, has_connectivity: bool) -> str:
     )
 
 
+def format_route_lines(route: str, *, max_len: int = 72) -> list[str]:
+    """Split a route into ``# …`` lines under Gaussian's ~80-char input limit.
+
+    G09 silently breaks overlong route lines mid-token (e.g. ``guess`` → ``g`` /
+    ``uess``), which yields QPErr syntax errors.
+    """
+    tokens = ascii_safe(" ".join((route or "").split())).split()
+    if not tokens:
+        return ["#"]
+    lines: list[str] = []
+    current = "#"
+    for tok in tokens:
+        candidate = f"{current} {tok}" if current != "#" else f"# {tok}"
+        if len(candidate) <= max_len:
+            current = candidate
+            continue
+        if current != "#":
+            lines.append(current)
+        current = f"# {tok}"
+        if len(current) > max_len:
+            lines.append(current)
+            current = "#"
+    if current != "#":
+        lines.append(current)
+    return lines
+
+
 def write_gjf(spec: GaussianJobSpec) -> str:
     route = ensure_opt_route(spec.route, has_connectivity=bool(spec.connectivity))
     lines: list[str] = [
         f"%chk={ascii_safe(spec.chk_name)}",
         f"%nprocshared={spec.nproc}",
         f"%mem={spec.mem_mb}MB",
-        f"# {ascii_safe(route)}",
-        "",
-        ascii_safe(spec.title),
-        "",
-        f"{spec.charge} {spec.multiplicity}",
     ]
+    lines.extend(format_route_lines(route))
+    lines.extend(
+        [
+            "",
+            ascii_safe(spec.title),
+            "",
+            f"{spec.charge} {spec.multiplicity}",
+        ]
+    )
     for sym, x, y, z in spec.atoms:
         lines.append(f" {sym:<2} {x:16.8f} {y:16.8f} {z:16.8f}")
     lines.append("")
@@ -122,13 +153,17 @@ def write_checkpoint_job(
         f"%chk={ascii_safe(chk)}",
         f"%nprocshared={nproc}",
         f"%mem={mem_mb}MB",
-        f"# {ascii_safe(route)}",
-        "",
-        ascii_safe(title),
-        "",
-        f"{charge} {multiplicity}",
-        "",
     ]
+    lines.extend(format_route_lines(route))
+    lines.extend(
+        [
+            "",
+            ascii_safe(title),
+            "",
+            f"{charge} {multiplicity}",
+            "",
+        ]
+    )
     if alter_swap is not None:
         a, b = alter_swap
         lines.extend(["Alter", f"swap {a},{b}", "end", ""])

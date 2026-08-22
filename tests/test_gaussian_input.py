@@ -125,3 +125,30 @@ def test_checkpoint_job_omits_oldchk() -> None:
     )
     assert "%oldchk" not in text.lower()
     assert "%chk=job_1_neutral.chk" in text
+
+
+def test_route_lines_under_80_for_corehole() -> None:
+    from src.core.dscf import DscfSettings, corehole_route
+    from src.core.gaussian_input import format_route_lines, write_checkpoint_job
+
+    route = corehole_route(DscfSettings())
+    assert len(route) > 72  # would overflow a single G09 line
+    for line in format_route_lines(route):
+        assert line.startswith("#")
+        assert len(line) <= 80
+    text = write_checkpoint_job(
+        title="core",
+        charge=0,
+        multiplicity=2,
+        route=route,
+        oldchk="old.chk",
+        chk="new.chk",
+        nproc=4,
+        mem_mb=1500,
+        alter_swap=(1, 5),
+    )
+    for line in text.splitlines():
+        if line.startswith("#"):
+            assert len(line) <= 80
+    assert "guess=(read,alter)" in text
+    assert text.count("#") >= 2
