@@ -5,6 +5,12 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.23] — 2026-08-23
+
+### Fixed
+- **Core-hole 1s (not valence)** — Guess=Alter swaps the target 1s with the β vacancy MO (`n_occ` / former HOMO), not two occupied MOs; eigenvalue parser includes Gaussian continuation lines so `n_occ` is not under-counted.
+- **Excel export** — soft-fail with install hint when `openpyxl` is missing; install smoke-tests include `openpyxl` / `scipy` / `PIL`.
+
 ### Changed
 - **Lean GitHub source** — stop tracking `standalone/`, `standalone_version/`, `docs/AI-deployment/`, and `.cursor/`. Build end-user zips with `scripts/build_standalone.py` and attach them to Releases.
 
