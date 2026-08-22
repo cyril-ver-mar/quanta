@@ -10,6 +10,8 @@ from src.core.dscf import (
     StepKind,
     StepStatus,
     build_workflow_steps,
+    corehole_route,
+    neutral_route,
     opt_route,
     serialize_steps,
 )
@@ -189,7 +191,7 @@ class JobService:
     def delete_pending(self, job_id: int) -> None:
         self.repo.delete_pending(job_id)
 
-    def restart_failed(self, job_id: int) -> None:
+    def restart_failed(self, job_id: int, settings: AppSettings | None = None) -> None:
         job = self.repo.get(job_id)
         if job is None:
             return
@@ -205,6 +207,39 @@ class JobService:
             step.orbital_index = None
             step.homo_index = None
             step.status = StepStatus.QUEUED if i == 0 else StepStatus.WAITING
+
+        # Rewrite OPT input with current Settings (fixes bad G09 routes on old jobs).
+        if settings is not None:
+            compound = self.compounds.get(job.compound_id)
+            if compound is not None:
+                dscf = self._dscf_settings(settings)
+                mol = self.compounds.load_molecule(compound)
+                atoms = mol_to_atoms(mol)
+                connectivity = connectivity_from_mol(mol) if mol.GetNumBonds() > 0 else None
+                for step in steps:
+                    if step.kind == StepKind.OPT:
+                        step.route = opt_route(dscf)
+                    elif step.kind == StepKind.NEUTRAL_SP:
+                        step.route = neutral_route(dscf)
+                    elif step.kind == StepKind.COREHOLE_SP:
+                        step.route = corehole_route(dscf)
+                opt = steps[0]
+                opt_gjf = job_dir(job_id) / "input" / opt.gjf_name
+                spec = GaussianJobSpec(
+                    title=f"{compound.name} - DSCF step 1 OPT",
+                    charge=compound.charge,
+                    multiplicity=compound.multiplicity,
+                    atoms=atoms,
+                    connectivity=connectivity,
+                    chk_name=f"job_{job_id}_opt.chk",
+                    nproc=settings.nproc,
+                    mem_mb=settings.mem_mb,
+                    route=opt.route,
+                )
+                opt_gjf.write_text(write_gjf(spec), encoding="utf-8")
+                job.route = opt.route
+                job.meta_json["current_gjf"] = str(opt_gjf)
+
         job.meta_json["steps"] = serialize_steps(steps)
         self.repo.update(job)
 

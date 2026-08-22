@@ -93,7 +93,7 @@ else:
             st.error(str(exc))
     if a2.button(t("queue_restart", lang)):
         try:
-            svc.restart_failed(int(selected))
+            svc.restart_failed(int(selected), settings)
             st.success(t("queue_requeued", lang))
             st.rerun()
         except Exception as exc:

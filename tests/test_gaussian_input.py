@@ -28,7 +28,7 @@ def test_write_gjf_includes_connectivity_for_ethane() -> None:
             multiplicity=1,
             atoms=[(a.GetSymbol(), 0.0, 0.0, 0.0) for a in mol.GetAtoms()],
             connectivity=conn,
-            route="opt pbe/6-31g(d) geom=connectivity int=ultrafine",
+            route="opt PBEPBE/6-31g(d) geom=connectivity Integral=UltraFine",
         )
     )
     assert "geom=connectivity" in text
@@ -37,11 +37,11 @@ def test_write_gjf_includes_connectivity_for_ethane() -> None:
 
 def test_ensure_opt_route_strips_connectivity_when_missing() -> None:
     assert "geom=connectivity" not in ensure_opt_route(
-        "opt pbe/6-31g(d) geom=connectivity int=ultrafine",
+        "opt PBEPBE/6-31g(d) geom=connectivity Integral=UltraFine",
         has_connectivity=False,
     )
     assert "geom=connectivity" in ensure_opt_route(
-        "opt pbe/6-31g(d) int=ultrafine",
+        "opt PBEPBE/6-31g(d) Integral=UltraFine",
         has_connectivity=True,
     )
 
@@ -97,3 +97,14 @@ def test_resolve_strips_quotes(tmp_path: Path, monkeypatch) -> None:
     cli.write_bytes(b"x")
     settings = AppSettings(gaussian_exe=f'"{cli}"')
     assert resolve_gaussian_exe(settings) == str(cli)
+
+
+def test_gaussian_method_maps_pbe() -> None:
+    from src.core.dscf import gaussian_method, opt_route, DscfSettings
+
+    assert gaussian_method("pbe") == "PBEPBE"
+    assert gaussian_method("b3lyp") == "B3LYP"
+    route = opt_route(DscfSettings(functional="pbe"))
+    assert "PBEPBE/" in route
+    assert "Integral=UltraFine" in route
+    assert "int=ultrafine" not in route.lower().replace("integral=ultrafine", "")

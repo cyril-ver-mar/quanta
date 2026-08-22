@@ -82,20 +82,42 @@ class DscfSettings:
     apply_c1s_shift: bool = True
 
 
+# Gaussian 09 method names (UI may store short aliases like "pbe").
+_FUNCTIONAL_G09 = {
+    "pbe": "PBEPBE",
+    "pbepbe": "PBEPBE",
+    "b3lyp": "B3LYP",
+}
+
+
+def gaussian_method(functional: str) -> str:
+    """Map Settings functional alias to a G09 DFT keyword."""
+    key = (functional or "pbe").strip().lower()
+    return _FUNCTIONAL_G09.get(key, (functional or "PBEPBE").strip().upper())
+
+
+def _integral_keyword() -> str:
+    # Prefer full Integral= form — bare "int=" is ambiguous in G09 (QPErr).
+    return "Integral=UltraFine"
+
+
 def opt_route(settings: DscfSettings) -> str:
-    return f"opt {settings.functional}/{settings.basis} geom=connectivity int=ultrafine"
+    method = gaussian_method(settings.functional)
+    return f"opt {method}/{settings.basis} geom=connectivity {_integral_keyword()}"
 
 
 def neutral_route(settings: DscfSettings) -> str:
+    method = gaussian_method(settings.functional)
     return (
-        f"sp {settings.functional}/{settings.basis} pop=full int=ultrafine "
+        f"sp {method}/{settings.basis} pop=full {_integral_keyword()} "
         "geom=checkpoint guess=read"
     )
 
 
 def corehole_route(settings: DscfSettings) -> str:
+    method = gaussian_method(settings.functional)
     return (
-        f"sp uks {settings.functional}/{settings.basis} pop=full int=ultrafine "
+        f"sp uks {method}/{settings.basis} pop=full {_integral_keyword()} "
         "geom=checkpoint guess=(read,alter)"
     )
 

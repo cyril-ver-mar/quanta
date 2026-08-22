@@ -41,8 +41,10 @@ c1, c2 = st.columns(2)
 settings.dscf_functional = c1.selectbox(
     t("settings_functional", lang),
     options=["pbe", "b3lyp"],
-    index=0 if settings.dscf_functional == "pbe" else 1,
+    index=0 if settings.dscf_functional.lower() == "pbe" else 1,
+    format_func=lambda x: "PBEPBE (PBE)" if x == "pbe" else "B3LYP",
 )
+st.caption(t("settings_dscf_g09_hint", lang))
 settings.dscf_basis = c2.text_input(t("settings_basis", lang), value=settings.dscf_basis)
 settings.xps_fwhm_ev = float(st.number_input(t("settings_fwhm", lang), value=float(settings.xps_fwhm_ev)))
 settings.xps_c1s_ref_ev = float(st.number_input(t("settings_c1s_ref", lang), value=float(settings.xps_c1s_ref_ev)))

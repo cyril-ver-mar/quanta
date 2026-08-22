@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-DEFAULT_ROUTE = "opt pbe/6-31g(d) geom=connectivity int=ultrafine"
+DEFAULT_ROUTE = "opt PBEPBE/6-31g(d) geom=connectivity Integral=UltraFine"
 
 # Windows Gaussian often chokes on non-ASCII in the title / Link0 lines.
 _ASCII_REPLACEMENTS = (
