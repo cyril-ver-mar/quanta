@@ -108,3 +108,20 @@ def test_gaussian_method_maps_pbe() -> None:
     assert "PBEPBE/" in route
     assert "Integral=UltraFine" in route
     assert "int=ultrafine" not in route.lower().replace("integral=ultrafine", "")
+
+
+def test_checkpoint_job_omits_oldchk() -> None:
+    from src.core.gaussian_input import write_checkpoint_job
+
+    text = write_checkpoint_job(
+        title="neutral",
+        charge=0,
+        multiplicity=1,
+        route="sp PBEPBE/6-31g(d) geom=checkpoint guess=read",
+        oldchk="job_1_opt.chk",
+        chk="job_1_neutral.chk",
+        nproc=4,
+        mem_mb=1500,
+    )
+    assert "%oldchk" not in text.lower()
+    assert "%chk=job_1_neutral.chk" in text

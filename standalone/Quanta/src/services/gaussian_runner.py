@@ -251,6 +251,39 @@ class GaussianRunner:
             job_name=job.name or f"job_{job.id}",
         )
 
+    def _find_chk(self, job_id: int, name: str, cwd_path: Path) -> Path | None:
+        jdir = job_dir(job_id)
+        for base in (cwd_path, jdir / "raw", jdir / "input"):
+            path = base / name
+            if path.is_file() and path.stat().st_size > 0:
+                return path
+        return None
+
+    def _stage_checkpoint(self, job_id: int, step, cwd_path: Path) -> None:
+        """Copy previous-step .chk into the name this step's %chk= expects (no %oldchk)."""
+        if step.kind == StepKind.OPT:
+            return
+        if step.kind == StepKind.NEUTRAL_SP:
+            src_name = f"job_{job_id}_opt.chk"
+            dst_name = f"job_{job_id}_neutral.chk"
+        elif step.kind == StepKind.COREHOLE_SP:
+            src_name = f"job_{job_id}_neutral.chk"
+            label = f"{step.element}{int(step.atom_index) + 1}"
+            dst_name = f"job_{job_id}_corehole_{label}.chk"
+        else:
+            return
+
+        src = self._find_chk(job_id, src_name, cwd_path)
+        if src is None:
+            raise FileNotFoundError(
+                f"Missing checkpoint {src_name} for step {step.key} "
+                f"(looked in work dir and data/jobs/{job_id}/raw)"
+            )
+        dst = cwd_path / dst_name
+        if src.resolve() != dst.resolve():
+            shutil.copy2(src, dst)
+        logger.info("Staged checkpoint %s -> %s", src, dst)
+
     def _run_step(self, job_id: int, step, settings: AppSettings, exe: str) -> bool:
         jdir = job_dir(job_id)
         gjf = jdir / "input" / step.gjf_name
@@ -297,6 +330,20 @@ class GaussianRunner:
         # Gaussian on Windows is happiest with CRLF / ASCII input.
         text = gjf.read_text(encoding="utf-8")
         local_gjf.write_text(text, encoding="ascii", errors="replace", newline="\n")
+
+        try:
+            self._stage_checkpoint(job_id, step, cwd_path)
+        except FileNotFoundError as exc:
+            step.status = StepStatus.FAILED
+            step.error = str(exc)
+            steps = self.jobs.get_steps(job_id)
+            for i, s in enumerate(steps):
+                if s.key == step.key:
+                    steps[i] = step
+            self.jobs.save_steps(job_id, steps)
+            job.error = step.error
+            self.repo.update(job)
+            return False
 
         gauss_stem = local_gjf.stem
         stdout_capture = cwd_path / f"{gauss_stem}.stdout.txt"

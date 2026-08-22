@@ -201,47 +201,98 @@ class JobService:
         job.status = JobStatus.QUEUED
         job.error = ""
         job.progress = 0.0
+        # Keep completed steps; re-queue from the first non-completed one.
+        first_pending = next(
+            (i for i, s in enumerate(steps) if s.status != StepStatus.COMPLETED),
+            0,
+        )
         for i, step in enumerate(steps):
+            if i < first_pending:
+                continue
             step.energy_ha = None
             step.error = ""
-            step.orbital_index = None
-            step.homo_index = None
-            step.status = StepStatus.QUEUED if i == 0 else StepStatus.WAITING
+            if step.kind == StepKind.COREHOLE_SP:
+                step.orbital_index = None
+                step.homo_index = None
+            step.status = StepStatus.QUEUED if i == first_pending else StepStatus.WAITING
 
-        # Rewrite OPT input with current Settings (fixes bad G09 routes on old jobs).
+        # Refresh routes / inputs from Settings (fixes bad G09 %oldchk / pbe routes).
         if settings is not None:
-            compound = self.compounds.get(job.compound_id)
-            if compound is not None:
-                dscf = self._dscf_settings(settings)
-                mol = self.compounds.load_molecule(compound)
-                atoms = mol_to_atoms(mol)
-                connectivity = connectivity_from_mol(mol) if mol.GetNumBonds() > 0 else None
-                for step in steps:
-                    if step.kind == StepKind.OPT:
-                        step.route = opt_route(dscf)
-                    elif step.kind == StepKind.NEUTRAL_SP:
-                        step.route = neutral_route(dscf)
-                    elif step.kind == StepKind.COREHOLE_SP:
-                        step.route = corehole_route(dscf)
-                opt = steps[0]
-                opt_gjf = job_dir(job_id) / "input" / opt.gjf_name
-                spec = GaussianJobSpec(
-                    title=f"{compound.name} - DSCF step 1 OPT",
-                    charge=compound.charge,
-                    multiplicity=compound.multiplicity,
-                    atoms=atoms,
-                    connectivity=connectivity,
-                    chk_name=f"job_{job_id}_opt.chk",
-                    nproc=settings.nproc,
-                    mem_mb=settings.mem_mb,
-                    route=opt.route,
-                )
-                opt_gjf.write_text(write_gjf(spec), encoding="utf-8")
-                job.route = opt.route
-                job.meta_json["current_gjf"] = str(opt_gjf)
+            dscf = self._dscf_settings(settings)
+            for step in steps:
+                if step.kind == StepKind.OPT:
+                    step.route = opt_route(dscf)
+                elif step.kind == StepKind.NEUTRAL_SP:
+                    step.route = neutral_route(dscf)
+                elif step.kind == StepKind.COREHOLE_SP:
+                    step.route = corehole_route(dscf)
+
+            pending = steps[first_pending] if steps else None
+            if pending and pending.kind == StepKind.OPT:
+                compound = self.compounds.get(job.compound_id)
+                if compound is not None:
+                    mol = self.compounds.load_molecule(compound)
+                    atoms = mol_to_atoms(mol)
+                    connectivity = connectivity_from_mol(mol) if mol.GetNumBonds() > 0 else None
+                    opt = steps[0]
+                    opt_gjf = job_dir(job_id) / "input" / opt.gjf_name
+                    spec = GaussianJobSpec(
+                        title=f"{compound.name} - DSCF step 1 OPT",
+                        charge=compound.charge,
+                        multiplicity=compound.multiplicity,
+                        atoms=atoms,
+                        connectivity=connectivity,
+                        chk_name=f"job_{job_id}_opt.chk",
+                        nproc=settings.nproc,
+                        mem_mb=settings.mem_mb,
+                        route=opt.route,
+                    )
+                    opt_gjf.write_text(write_gjf(spec), encoding="utf-8")
+                    job.route = opt.route
+                    job.meta_json["current_gjf"] = str(opt_gjf)
+            elif pending and pending.kind == StepKind.NEUTRAL_SP:
+                path = self.write_neutral_gjf(job_id, settings)
+                job.meta_json["current_gjf"] = str(path)
+            elif pending and pending.kind == StepKind.COREHOLE_SP:
+                # Rebuild core-hole inputs from the completed neutral log when possible.
+                try:
+                    self._rebuild_corehole_steps(job_id, settings)
+                    steps = self.get_steps(job_id)
+                except Exception:
+                    logger.exception("Could not rebuild core-hole inputs on restart")
 
         job.meta_json["steps"] = serialize_steps(steps)
         self.repo.update(job)
+
+    def _rebuild_corehole_steps(self, job_id: int, settings: AppSettings) -> None:
+        """Remap orbitals and rewrite core-hole .gjf files after a successful neutral SP."""
+        from src.core.dscf import assign_core_orbitals, homo_orbital_index, list_xps_atoms
+        from src.services.gaussian_parser import parse_gaussian_log
+        from src.services.compound_service import mol_to_atoms
+
+        job = self.repo.get(job_id)
+        if job is None:
+            return
+        compound = self.compounds.get(job.compound_id)
+        if compound is None:
+            raise ValueError("compound missing")
+        steps = self.get_steps(job_id)
+        mol = self.compounds.load_molecule(compound)
+        xps_atoms = list_xps_atoms(mol_to_atoms(mol))
+        neutral = next(s for s in steps if s.kind == StepKind.NEUTRAL_SP)
+        neutral_log = job_dir(job_id) / "raw" / neutral.log_name
+        parsed = parse_gaussian_log(neutral_log)
+        orb_map = assign_core_orbitals(parsed.orbitals, xps_atoms)
+        homo = homo_orbital_index(parsed.orbitals)
+        for step in steps:
+            if step.kind != StepKind.COREHOLE_SP or step.atom_index is None:
+                continue
+            step.orbital_index = orb_map[step.atom_index]
+            step.homo_index = homo
+            self.write_corehole_gjf(job_id, step, settings)
+            if step.status != StepStatus.COMPLETED:
+                step.status = StepStatus.QUEUED
+        self.save_steps(job_id, steps)
 
     def pause_queue(self) -> None:
         for job in self.repo.list_by_status(JobStatus.QUEUED):

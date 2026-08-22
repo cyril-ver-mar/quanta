@@ -112,9 +112,13 @@ def write_checkpoint_job(
     mem_mb: int,
     alter_swap: tuple[int, int] | None = None,
 ) -> str:
-    """SP from checkpoint; optional Guess=Alter swap pair (core orbital, HOMO)."""
+    """SP from checkpoint; optional Guess=Alter swap pair (core orbital, HOMO).
+
+    G09W often rejects ``%oldchk=``. The runner copies ``oldchk`` → ``chk`` on disk
+    before launch; the input only references ``%chk=``.
+    """
+    _ = oldchk  # staged by GaussianRunner before launch
     lines: list[str] = [
-        f"%oldchk={ascii_safe(oldchk)}",
         f"%chk={ascii_safe(chk)}",
         f"%nprocshared={nproc}",
         f"%mem={mem_mb}MB",
