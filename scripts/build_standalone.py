@@ -72,6 +72,16 @@ If the browser does not open automatically, paste the URL manually.
 6. **Results** — binding energies and spectra  
 
 Requires **Python 3.11**.
+
+## Secrets (optional)
+
+Copy `SECRETS.example` → `SECRETS` next to `app.py` and add:
+
+```
+GITHUB_TOKEN=ghp_your_token
+```
+
+This raises GitHub update-check rate limits. Keep `SECRETS` private; you may copy it between trusted machines. In-app updates preserve `SECRETS`.
 """
 
 
@@ -134,6 +144,11 @@ def main() -> None:
                 break
         if repo_line:
             (OUT / "GITHUB_REPO").write_text(f"{repo_line}\n", encoding="utf-8")
+
+    secrets_example = ROOT / "SECRETS.example"
+    if secrets_example.is_file():
+        shutil.copy2(secrets_example, OUT / "SECRETS.example")
+    # Never copy a real SECRETS file into the distributable.
 
     runtime_req = ROOT / "requirements-runtime.txt"
     if runtime_req.is_file():

@@ -24,6 +24,8 @@ PRESERVE_TOP_LEVEL = frozenset(
         ".git",
         "__pycache__",
         ".pytest_cache",
+        "SECRETS",
+        ".env",
     }
 )
 

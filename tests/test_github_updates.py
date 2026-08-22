@@ -19,10 +19,13 @@ from src.utils.github_updates import (
     ERR_NETWORK,
     ERR_SSL,
     ERR_TIMEOUT,
+    ReleaseInfo,
     _normalize_repo,
     _pick_zip_asset,
+    _save_disk_cache,
     check_for_update,
     classify_github_error,
+    fetch_latest_release_outcome,
     is_newer,
     parse_semver,
     resolve_github_repo,
@@ -133,3 +136,24 @@ def test_check_for_update_not_configured(tmp_path: Path, monkeypatch: pytest.Mon
     status = check_for_update(local_version="1.0.6", root=tmp_path)
     assert status.configured is False
     assert status.error_code == "not_configured"
+
+
+def test_disk_cache_avoids_repeat_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cache = tmp_path / "update_check_cache.json"
+    monkeypatch.setattr("src.utils.github_updates.CACHE_PATH", cache)
+    monkeypatch.setattr("src.utils.github_updates.DATA_DIR", tmp_path)
+    release = ReleaseInfo(
+        tag="v1.0.8",
+        version="1.0.8",
+        html_url="https://github.com/acme/quanta/releases/tag/v1.0.8",
+        zip_url="https://example/standalone.zip",
+        zip_name="standalone.zip",
+    )
+    _save_disk_cache("acme/quanta", release=release, error_code=None, detail="", ttl_s=3600.0)
+    with patch("urllib.request.urlopen") as mock_open:
+        got, err, detail = fetch_latest_release_outcome("acme/quanta", use_cache=True)
+    mock_open.assert_not_called()
+    assert err is None
+    assert got is not None
+    assert got.version == "1.0.8"
+

@@ -78,6 +78,19 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "settings_dscf_hint": "PBE matches JPCC-style gas-phase ΔSCF; B3LYP is available for comparison.",
         "settings_c1s_shift": "Shift C1s to reference (284.3 eV)",
         "settings_saved": "Saved to data/settings.json",
+        "settings_secrets": "Secrets",
+        "settings_secrets_hint": (
+            "Optional file `SECRETS` next to `app.py` (copy from `SECRETS.example`). "
+            "Transfer the same file to trusted standalone installs. Values are never shown here."
+        ),
+        "settings_secrets_path": "Path: `{path}`",
+        "settings_secrets_found": "Secrets file found. Keys present: {keys}",
+        "settings_secrets_missing": "No `SECRETS` file yet — copy `SECRETS.example` → `SECRETS` and add a GitHub token to avoid rate limits.",
+        "settings_secrets_token_ok": "GitHub API token: configured ({source}).",
+        "settings_secrets_token_env": "from environment",
+        "settings_secrets_token_file": "from SECRETS file",
+        "settings_secrets_token_missing": "GitHub API token: not set (update checks use 60 requests/hour).",
+        "settings_secrets_reload": "Reload secrets file",
         "queue_dscf_caption": "Runs all ready steps of the next queued workflow (OPT → neutral SP → core-hole SPs).",
         "queue_run_next": "Run next workflow",
         "queue_running": "Running Gaussian steps…",
@@ -124,7 +137,8 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
             "GitHub has no latest release for `{repo}` (repository missing or no releases). ({detail})"
         ),
         "update_check_rate_limit": (
-            "GitHub refused the update check (rate limit or access denied). Try again later. ({detail})"
+            "GitHub rate limit reached (60 checks/hour without a token). Wait ~15–60 min, "
+            "or put `GITHUB_TOKEN=...` in the root `SECRETS` file (see `SECRETS.example`). ({detail})"
         ),
         "update_check_http": "GitHub returned an HTTP error during the update check. ({detail})",
         "update_check_bad_response": (
@@ -234,6 +248,19 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "settings_dscf_hint": "PBE ближе к gas-phase ΔSCF из JPCC; B3LYP — для сравнения.",
         "settings_c1s_shift": "Сдвиг C1s к 284.3 eV",
         "settings_saved": "Сохранено в data/settings.json",
+        "settings_secrets": "Секреты",
+        "settings_secrets_hint": (
+            "Необязательный файл `SECRETS` рядом с `app.py` (скопируйте из `SECRETS.example`). "
+            "Можно переносить в доверенные standalone-установки. Значения здесь не показываются."
+        ),
+        "settings_secrets_path": "Путь: `{path}`",
+        "settings_secrets_found": "Файл секретов найден. Ключи: {keys}",
+        "settings_secrets_missing": "Нет файла `SECRETS` — скопируйте `SECRETS.example` → `SECRETS` и укажите токен GitHub.",
+        "settings_secrets_token_ok": "Токен GitHub API: задан ({source}).",
+        "settings_secrets_token_env": "из переменной окружения",
+        "settings_secrets_token_file": "из файла SECRETS",
+        "settings_secrets_token_missing": "Токен GitHub API: не задан (лимит обновлений 60 запросов/час).",
+        "settings_secrets_reload": "Перечитать файл секретов",
         "queue_dscf_caption": "Запуск готовых шагов следующего workflow (OPT → neutral SP → core-hole SP).",
         "queue_run_next": "Запустить workflow",
         "queue_running": "Идёт расчёт Gaussian…",
@@ -280,7 +307,8 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
             "На GitHub нет последнего релиза для `{repo}` (репозиторий не найден или нет релизов). ({detail})"
         ),
         "update_check_rate_limit": (
-            "GitHub отклонил проверку обновлений (лимит запросов или нет доступа). Попробуйте позже. ({detail})"
+            "Лимит запросов GitHub (60/час без токена). Подождите ~15–60 мин или укажите "
+            "`GITHUB_TOKEN=...` в файле `SECRETS` (см. `SECRETS.example`). ({detail})"
         ),
         "update_check_http": "GitHub вернул HTTP-ошибку при проверке обновлений. ({detail})",
         "update_check_bad_response": (

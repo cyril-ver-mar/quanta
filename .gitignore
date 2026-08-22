@@ -7,6 +7,10 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .streamlit/secrets.toml
+SECRETS
+.env
+.env.*
+!.env.example
 data/
 exports/
 *.db

@@ -5,6 +5,15 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.8] — 2026-08-22
+
+### Fixed
+- **GitHub update rate limit** — disk cache (1 h), 15 min backoff on 403, Settings no longer hits API every visit; optional token via root `SECRETS` file or env.
+
+### Added
+- **Root `SECRETS` file** — optional `KEY=value` secrets next to `app.py` (`SECRETS.example` template); app loads if present; preserved on in-app update; never committed / never shipped in standalone zip.
+- **Settings → Secrets** — shows whether `SECRETS` exists and if a GitHub token is configured (never displays the token).
+
 ## [1.0.7] — 2026-08-22
 
 ### Added

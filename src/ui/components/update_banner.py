@@ -19,6 +19,7 @@ from src.utils.github_updates import (
     ERR_UNEXPECTED,
     UpdateStatus,
     check_for_update,
+    clear_update_cache,
     resolve_github_repo,
 )
 from src.utils.i18n import t
@@ -57,14 +58,14 @@ def _status_error_text(status: UpdateStatus, lang: str) -> str | None:
     )
 
 
-def _ensure_checked(*, force: bool = False) -> UpdateStatus:
+def _ensure_checked(*, force: bool = False, use_cache: bool = True) -> UpdateStatus:
     """Run network check once per Streamlit session (every app launch)."""
     if not force:
         cached = st.session_state.get(_SESSION_STATUS)
         if isinstance(cached, UpdateStatus):
             return cached
     try:
-        status = check_for_update(local_version=get_version())
+        status = check_for_update(local_version=get_version(), use_cache=use_cache and not force)
     except Exception as exc:  # noqa: BLE001 — never block UI on updater
         logger.exception("Update check failed")
         status = UpdateStatus(
@@ -129,8 +130,9 @@ def render_update_banner(lang: str) -> None:
                     get_version.cache_clear()
                     st.session_state[_SESSION_DONE] = True
                     st.session_state.pop(_SESSION_ERROR, None)
+                    clear_update_cache()
                     st.session_state[_SESSION_STATUS] = check_for_update(
-                        local_version=get_version()
+                        local_version=get_version(), use_cache=False
                     )
                     st.rerun()
                 except Exception as exc:
@@ -148,8 +150,7 @@ def render_update_banner(lang: str) -> None:
 def render_update_settings(lang: str) -> None:
     """Settings section: status + force re-check."""
     st.subheader(t("update_section", lang))
-    # Always fresh read here — user may have just edited GITHUB_REPO on disk.
-    status = _ensure_checked(force=True)
+    status = _ensure_checked()
     repo_path = ROOT / "GITHUB_REPO"
     if status.error_code == ERR_NOT_CONFIGURED:
         st.caption(f"`{repo_path}` — exists: **{repo_path.is_file()}**")
@@ -188,7 +189,11 @@ def render_update_settings(lang: str) -> None:
             st.success(t("update_up_to_date", lang))
 
     if st.button(t("update_check_now", lang), key="_update_check_now"):
+        clear_update_cache()
         st.session_state.pop(_SESSION_STATUS, None)
         st.session_state.pop(_SESSION_DISMISSED, None)
         st.session_state.pop(_SESSION_ERROR, None)
+        st.session_state[_SESSION_STATUS] = check_for_update(
+            local_version=get_version(), use_cache=False
+        )
         st.rerun()

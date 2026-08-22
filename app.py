@@ -18,6 +18,7 @@ from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.paths import ensure_runtime_dirs
+from src.utils.secrets import load_secrets
 
 SESSION_DEFAULTS = {
     "settings_loaded": False,
@@ -35,6 +36,7 @@ for key, value in SESSION_DEFAULTS.items():
         st.session_state[key] = value
 
 ensure_runtime_dirs()
+load_secrets()  # optional root SECRETS file (GitHub token, etc.)
 init_db()
 project_service.ensure_legacy_migration()
 settings = AppSettings.load()
