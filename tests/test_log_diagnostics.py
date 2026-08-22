@@ -36,3 +36,18 @@ def test_tail_lines() -> None:
 
 def test_extract_empty() -> None:
     assert extract_error_snippets("Normal termination of Gaussian 09") == []
+
+
+def test_scf_done_parses_hyphenated_method(tmp_path: Path) -> None:
+    """PBE labels are E(RPBE-PBE) / E(UPBE-PBE) — hyphen must not break the regex."""
+    from src.services.gaussian_parser import final_scf_energy_ha, parse_gaussian_log
+
+    log = tmp_path / "neutral.log"
+    log.write_text(
+        " SCF Done:  E(RPBE-PBE) =  -79.6987024059     A.U. after    3 cycles\n"
+        "Normal termination of Gaussian 09 at Sun Aug 23 01:37:08 2026.\n",
+        encoding="utf-8",
+    )
+    parsed = parse_gaussian_log(log)
+    assert parsed.method == "RPBE-PBE"
+    assert final_scf_energy_ha(parsed) == -79.6987024059

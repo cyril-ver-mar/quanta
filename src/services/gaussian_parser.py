@@ -8,7 +8,8 @@ from pathlib import Path
 
 from src.core.models import Orbital
 
-SCF_RE = re.compile(r"SCF Done:\s+E\((\w+)\)\s*=\s*([-\d.]+)", re.I)
+# Method labels may include hyphens: E(RPBE-PBE), E(UPBE-PBE), E(RB3LYP), …
+SCF_RE = re.compile(r"SCF Done:\s+E\(([^)]+)\)\s*=\s*([-\d.]+)", re.I)
 OPT_RE = re.compile(r"Optimized Parameters", re.I)
 NORMAL_RE = re.compile(r"Normal termination of Gaussian", re.I)
 ERROR_RE = re.compile(r"Error termination", re.I)

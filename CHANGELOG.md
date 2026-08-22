@@ -5,6 +5,11 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.21] — 2026-08-23
+
+### Fixed
+- **Could not read E₀** — parse `SCF Done: E(RPBE-PBE)` / `E(UPBE-PBE)` (hyphenated method labels); previous `\w+` regex skipped those lines.
+
 ## [1.0.20] — 2026-08-23
 
 ### Fixed
