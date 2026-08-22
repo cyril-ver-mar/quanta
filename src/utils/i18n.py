@@ -68,6 +68,12 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "results_fixture": "Demo fixture",
         "results_fixture_btn": "Create melanine workflow skeleton (OPT log only)",
         "results_fixture_note": "Job #{job_id} created — complete neutral & core-hole logs on Windows, or import archive.",
+        "results_chong_btn": "Import Chong test molecules (ethane + hydrazine)",
+        "results_chong_hint": (
+            "Small smoke-test structures from Chong 2007 Table 1 (C₂H₆ C1s≈290.7 eV obs; N₂H₄ N1s≈406.1 eV obs). "
+            "Import → Jobs → create ΔSCF → Queue. Absolute BEs with PBE/6-31G* will differ from Chong’s PW86-PW91/TZP."
+        ),
+        "results_chong_ok": "Imported: {names}. Open Jobs to create ΔSCF workflows.",
         "results_recurate": "Re-analyze logs → XPS tables",
         "results_no_summary": "No curated summary yet — finish all workflow steps or click Re-analyze.",
         "results_curated": "Curated {n} ΔSCF peaks",
@@ -238,6 +244,12 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "results_fixture": "Демо",
         "results_fixture_btn": "Создать skeleton melanine (только OPT log)",
         "results_fixture_note": "Задача #{job_id} — завершите neutral/core-hole на Windows или импортируйте архив.",
+        "results_chong_btn": "Импорт тест-молекул Chong (этан + гидразин)",
+        "results_chong_hint": (
+            "Малые молекулы из Chong 2007, табл. 1 (C₂H₆ C1s≈290.7 эВ; N₂H₄ N1s≈406.1 эВ). "
+            "Импорт → Jobs → ΔSCF → Очередь. Абсолютные BE при PBE/6-31G* не совпадут с методом Chong."
+        ),
+        "results_chong_ok": "Импортировано: {names}. Создайте ΔSCF на странице Jobs.",
         "results_recurate": "Пересобрать таблицы XPS",
         "results_no_summary": "Нет summary — завершите workflow или нажмите Пересобрать.",
         "results_curated": "Собрано пиков ΔSCF: {n}",

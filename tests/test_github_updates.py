@@ -157,3 +157,48 @@ def test_disk_cache_avoids_repeat_fetch(tmp_path: Path, monkeypatch: pytest.Monk
     assert got is not None
     assert got.version == "1.0.8"
 
+
+def test_fetch_picks_highest_semver_from_tags(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("src.utils.github_updates.CACHE_PATH", tmp_path / "cache.json")
+    monkeypatch.setattr("src.utils.github_updates.DATA_DIR", tmp_path)
+
+    def fake_get(url: str):
+        if "/releases?" in url:
+            return (
+                [
+                    {
+                        "tag_name": "v1.0.0",
+                        "name": "old",
+                        "draft": False,
+                        "html_url": "https://github.com/acme/quanta/releases/tag/v1.0.0",
+                        "assets": [],
+                    }
+                ],
+                None,
+                "",
+            )
+        if url.endswith("/releases/latest"):
+            return (
+                {
+                    "tag_name": "v1.0.0",
+                    "name": "old",
+                    "html_url": "https://github.com/acme/quanta/releases/tag/v1.0.0",
+                    "assets": [],
+                },
+                None,
+                "",
+            )
+        if "/tags" in url:
+            return (
+                [{"name": "v1.0.8"}, {"name": "v1.0.7"}, {"name": "v1.0.0"}],
+                None,
+                "",
+            )
+        return None, "unexpected", url
+
+    with patch("src.utils.github_updates._github_get_json", side_effect=fake_get):
+        got, err, _ = fetch_latest_release_outcome("acme/quanta", use_cache=False)
+    assert err is None
+    assert got is not None
+    assert got.version == "1.0.8"
+

@@ -43,6 +43,21 @@ jobs = JobService().list_jobs_for_compounds(pids)
 results = ResultsService()
 
 st.subheader(t("results_fixture", lang))
+st.caption(t("results_chong_hint", lang))
+if st.button(t("results_chong_btn", lang)):
+    try:
+        from src.services.fixture_service import import_chong_test_molecules
+
+        proj = get_project()
+        assert proj is not None
+        imported = import_chong_test_molecules(proj)
+        set_project(project_service.load_project(proj.id))
+        names = ", ".join(f"{n} (#{cid})" for n, cid in imported)
+        st.success(t("results_chong_ok", lang, names=names))
+        st.rerun()
+    except Exception as exc:
+        st.error(str(exc))
+
 if st.button(t("results_fixture_btn", lang)):
     import shutil
 

@@ -5,6 +5,15 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.9] — 2026-08-22
+
+### Added
+- **Chong 2007 smoke-test molecules** — `fixtures/chong2007/` ethane (C₂H₆) + hydrazine (N₂H₄) with Table 1 reference CEBEs; Results button to import into the active project.
+
+### Fixed
+- **Update check showed 1.0.0 as latest** — resolve newest semver from Releases *and* git tags (tags without a GitHub Release no longer hide newer versions).
+- **SECRETS parsing** — keys are case-insensitive; clearer `SECRETS.example` (keep full `ghp_` / `github_pat_` token).
+
 ## [1.0.8] — 2026-08-22
 
 ### Fixed

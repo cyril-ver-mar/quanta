@@ -311,8 +311,56 @@ def classify_github_error(exc: BaseException) -> tuple[str, str]:
     return ERR_UNEXPECTED, str(exc)
 
 
+def _github_get_json(url: str) -> tuple[Any, Optional[str], str]:
+    """GET JSON from GitHub API. Returns ``(payload, error_code, detail)``."""
+    req = urllib.request.Request(url, headers=_api_headers(), method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=API_TIMEOUT_S) as resp:
+            return json.loads(resp.read().decode("utf-8")), None, ""
+    except Exception as exc:  # classified below
+        code, detail = classify_github_error(exc)
+        return None, code, detail
+
+
+def _release_info_from_release_payload(repo: str, payload: dict) -> ReleaseInfo:
+    tag = str(payload.get("tag_name") or "")
+    version = tag.lstrip("vV")
+    zip_url, zip_name = _pick_zip_asset(list(payload.get("assets") or []))
+    if not zip_url and tag:
+        # Source archive always available for a published tag/release
+        zip_url = f"https://github.com/{repo}/archive/refs/tags/{tag}.zip"
+        zip_name = f"{tag}.zip"
+    html_url = str(payload.get("html_url") or f"https://github.com/{repo}/releases/tag/{tag}")
+    return ReleaseInfo(
+        tag=tag,
+        version=version,
+        html_url=html_url,
+        zip_url=zip_url,
+        zip_name=zip_name,
+        name=str(payload.get("name") or tag),
+    )
+
+
+def _release_info_from_tag(repo: str, tag: str) -> ReleaseInfo:
+    version = tag.lstrip("vV")
+    return ReleaseInfo(
+        tag=tag if tag.startswith("v") or tag.startswith("V") else f"v{version}",
+        version=version,
+        html_url=f"https://github.com/{repo}/releases/tag/{tag}",
+        zip_url=f"https://github.com/{repo}/archive/refs/tags/{tag}.zip",
+        zip_name=f"{tag}.zip",
+        name=tag,
+    )
+
+
+def _best_by_semver(candidates: list[ReleaseInfo]) -> Optional[ReleaseInfo]:
+    if not candidates:
+        return None
+    return max(candidates, key=lambda r: parse_semver(r.version))
+
+
 def fetch_latest_release(repo: str) -> Optional[ReleaseInfo]:
-    """GET ``/repos/{repo}/releases/latest``. Returns None on any failure."""
+    """Resolve newest version from GitHub releases and/or tags."""
     release, _code, _detail = fetch_latest_release_outcome(repo)
     return release
 
@@ -322,7 +370,11 @@ def fetch_latest_release_outcome(
     *,
     use_cache: bool = True,
 ) -> tuple[Optional[ReleaseInfo], Optional[str], str]:
-    """Return ``(release, error_code, detail)``. ``error_code`` is None on success."""
+    """Return ``(release, error_code, detail)``.
+
+    Prefer the highest semver among non-draft Releases; if that is missing or
+    stale vs tags (common when only tags were pushed), fall back to tags.
+    """
     repo = _normalize_repo(repo) or ""
     if not repo:
         return None, ERR_NOT_CONFIGURED, "empty repo id"
@@ -333,39 +385,80 @@ def fetch_latest_release_outcome(
             logger.debug("Using cached GitHub release check for %s", repo)
             return cached
 
-    url = f"https://api.github.com/repos/{repo}/releases/latest"
-    req = urllib.request.Request(url, headers=_api_headers(), method="GET")
-    try:
-        with urllib.request.urlopen(req, timeout=API_TIMEOUT_S) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except Exception as exc:  # classified below — never raise to UI
-        code, detail = classify_github_error(exc)
-        logger.warning("GitHub release check failed for %s [%s]: %s", repo, code, detail)
+    candidates: list[ReleaseInfo] = []
+    last_err: Optional[str] = None
+    last_detail = ""
+
+    releases_payload, err, detail = _github_get_json(
+        f"https://api.github.com/repos/{repo}/releases?per_page=30"
+    )
+    if err:
+        last_err, last_detail = err, detail
+        logger.warning("GitHub releases list failed for %s [%s]: %s", repo, err, detail)
+    elif isinstance(releases_payload, list):
+        for item in releases_payload:
+            if not isinstance(item, dict) or item.get("draft"):
+                continue
+            tag = str(item.get("tag_name") or "")
+            if not tag:
+                continue
+            candidates.append(_release_info_from_release_payload(repo, item))
+    else:
+        last_err, last_detail = ERR_BAD_RESPONSE, "releases payload is not a list"
+
+    # Also consider /releases/latest (may differ from list order)
+    latest_payload, err2, detail2 = _github_get_json(
+        f"https://api.github.com/repos/{repo}/releases/latest"
+    )
+    if err2 and err2 != ERR_HTTP_404:
+        last_err = last_err or err2
+        last_detail = last_detail or detail2
+    elif isinstance(latest_payload, dict) and latest_payload.get("tag_name"):
+        candidates.append(_release_info_from_release_payload(repo, latest_payload))
+
+    tags_payload, err3, detail3 = _github_get_json(
+        f"https://api.github.com/repos/{repo}/tags?per_page=30"
+    )
+    if err3:
+        last_err = last_err or err3
+        last_detail = last_detail or detail3
+        logger.warning("GitHub tags list failed for %s [%s]: %s", repo, err3, detail3)
+    elif isinstance(tags_payload, list):
+        for item in tags_payload:
+            if not isinstance(item, dict):
+                continue
+            tag = str(item.get("name") or "")
+            if not tag or parse_semver(tag) == (0, 0, 0):
+                continue
+            candidates.append(_release_info_from_tag(repo, tag))
+    else:
+        last_err = last_err or ERR_BAD_RESPONSE
+        last_detail = last_detail or "tags payload is not a list"
+
+    best = _best_by_semver(candidates)
+    if best is None:
+        code = last_err or ERR_HTTP_404
+        detail = last_detail or "no releases or version tags found"
         ttl = CACHE_TTL_RATE_LIMIT_S if code == ERR_HTTP_403 else 60.0
         _save_disk_cache(repo, release=None, error_code=code, detail=detail, ttl_s=ttl)
         return None, code, detail
-    if not isinstance(payload, dict):
-        detail = "latest release payload is not an object"
-        _save_disk_cache(repo, release=None, error_code=ERR_BAD_RESPONSE, detail=detail, ttl_s=60.0)
-        return None, ERR_BAD_RESPONSE, detail
-    tag = str(payload.get("tag_name") or "")
-    if not tag:
-        detail = "latest release has no tag_name"
-        _save_disk_cache(repo, release=None, error_code=ERR_BAD_RESPONSE, detail=detail, ttl_s=60.0)
-        return None, ERR_BAD_RESPONSE, detail
-    version = tag.lstrip("vV")
-    zip_url, zip_name = _pick_zip_asset(list(payload.get("assets") or []))
-    html_url = str(payload.get("html_url") or f"https://github.com/{repo}/releases/latest")
-    release = ReleaseInfo(
-        tag=tag,
-        version=version,
-        html_url=html_url,
-        zip_url=zip_url,
-        zip_name=zip_name,
-        name=str(payload.get("name") or tag),
-    )
-    _save_disk_cache(repo, release=release, error_code=None, detail="", ttl_s=CACHE_TTL_OK_S)
-    return release, None, ""
+
+    # Prefer candidate with a standalone zip asset when versions tie
+    same_ver = [c for c in candidates if parse_semver(c.version) == parse_semver(best.version)]
+    with_asset = [
+        c
+        for c in same_ver
+        if c.zip_name and "standalone" in c.zip_name.lower()
+    ]
+    if with_asset:
+        best = with_asset[0]
+    elif any(c.zip_url and "archive/refs/tags" not in (c.zip_url or "") for c in same_ver):
+        best = next(
+            c for c in same_ver if c.zip_url and "archive/refs/tags" not in c.zip_url
+        )
+
+    _save_disk_cache(repo, release=best, error_code=None, detail="", ttl_s=CACHE_TTL_OK_S)
+    return best, None, ""
 
 
 @dataclass(frozen=True)

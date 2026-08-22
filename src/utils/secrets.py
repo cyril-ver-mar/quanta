@@ -48,7 +48,10 @@ def secrets_file_exists(root: Path | None = None) -> bool:
 
 
 def parse_secrets_text(text: str) -> dict[str, str]:
-    """Parse KEY=value lines; strip quotes; skip comments/blank lines."""
+    """Parse KEY=value lines; strip quotes; skip comments/blank lines.
+
+    Keys are stored uppercased so ``github_token=`` works like ``GITHUB_TOKEN=``.
+    """
     out: dict[str, str] = {}
     for raw in text.splitlines():
         line = raw.strip()
@@ -57,10 +60,11 @@ def parse_secrets_text(text: str) -> dict[str, str]:
         if "=" not in line:
             continue
         key, _, value = line.partition("=")
-        key = key.strip()
+        key = key.strip().upper()
         value = value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
+        value = value.strip()
         if key and value:
             out[key] = value
     return out
@@ -103,7 +107,7 @@ def get_secret(name: str, *, root: Path | None = None, default: str = "") -> str
 
     file_map = load_secrets(str(root) if root else None)
     for key in aliases:
-        val = (file_map.get(key) or "").strip()
+        val = (file_map.get(key.upper()) or file_map.get(key) or "").strip()
         if val:
             return val
     return default
