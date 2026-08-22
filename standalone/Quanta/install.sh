@@ -5,6 +5,82 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
+# shellcheck source=scripts/fetch_app.sh
+source "$ROOT/scripts/fetch_app.sh" 2>/dev/null || true
+if ! declare -F fetch_quanta_app >/dev/null 2>&1; then
+  if [[ -f "$ROOT/../scripts/fetch_app.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$ROOT/../scripts/fetch_app.sh"
+  fi
+fi
+
+fetch_quanta_inline() {
+  if [[ -f app.py ]] && [[ -d src ]] && [[ -d pages ]]; then
+    ok "Application files present"
+    return 0
+  fi
+  if declare -F fetch_quanta_app >/dev/null 2>&1; then
+    fetch_quanta_app
+    return
+  fi
+
+  local repo="cyril-ver-mar/quanta"
+  if [[ -f GITHUB_REPO ]]; then
+    repo="$(tr -d '[:space:]' < GITHUB_REPO | head -1)"
+  fi
+  local tag="${QUANTA_TAG:-}"
+  if [[ -z "$tag" ]]; then
+    tag="v$(tr -d '[:space:]' < VERSION 2>/dev/null || echo 1.0.2)"
+  fi
+  [[ "$tag" == v* ]] || tag="v${tag}"
+
+  local tmp src=""
+  tmp="$(mktemp -d)"
+  if command -v git >/dev/null 2>&1; then
+    if git clone --depth 1 --branch "$tag" "https://github.com/${repo}.git" "$tmp/repo" 2>/dev/null; then
+      if [[ -f "$tmp/repo/standalone/Quanta/app.py" ]]; then
+        src="$tmp/repo/standalone/Quanta"
+      elif [[ -f "$tmp/repo/app.py" ]]; then
+        src="$tmp/repo"
+      fi
+    fi
+  fi
+  if [[ -z "$src" ]] && command -v curl >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; then
+    if curl -fsSL "https://github.com/${repo}/archive/refs/tags/${tag}.zip" -o "$tmp/src.zip"; then
+      unzip -q "$tmp/src.zip" -d "$tmp"
+      local extracted
+      extracted="$(find "$tmp" -maxdepth 1 -type d -name 'quanta-*' | head -1)"
+      if [[ -n "$extracted" ]]; then
+        if [[ -f "$extracted/standalone/Quanta/app.py" ]]; then
+          src="$extracted/standalone/Quanta"
+        elif [[ -f "$extracted/app.py" ]]; then
+          src="$extracted"
+        fi
+      fi
+    fi
+  fi
+  if [[ -z "$src" ]] || [[ ! -f "$src/app.py" ]]; then
+    rm -rf "$tmp"
+    fail "Could not download Quanta application" \
+      "Check internet and GitHub tag ${tag} (${repo})" \
+      "Or clone: git clone https://github.com/${repo}.git"
+  fi
+  local item
+  for item in app.py launch.py pages src run.sh run.bat VERSION requirements.txt requirements-runtime.txt .streamlit GITHUB_REPO scripts; do
+    if [[ -e "$src/$item" ]]; then
+      if [[ -d "$src/$item" ]]; then
+        rm -rf "$ROOT/$item"
+        cp -R "$src/$item" "$ROOT/"
+      else
+        cp "$src/$item" "$ROOT/"
+      fi
+    fi
+  done
+  rm -rf "$tmp"
+  chmod +x "$ROOT/run.sh" 2>/dev/null || true
+  ok "Downloaded Quanta ${tag} from GitHub"
+}
+
 if [[ -t 1 ]] && [[ "${NO_COLOR:-}" == "" ]]; then
   C_ACCENT=$'\033[38;2;217;119;87m'
   C_OK=$'\033[38;2;61;154;110m'
@@ -65,10 +141,13 @@ tip() {
   echo
 }
 
-TOTAL=6
+TOTAL=7
 banner
 
-step 1 "$TOTAL" "Locate Python 3.11"
+step 1 "$TOTAL" "Ensure application files"
+fetch_quanta_inline
+
+step 2 "$TOTAL" "Locate Python 3.11"
 PY=""
 for cand in python3.11 python3 python; do
   if command -v "$cand" >/dev/null 2>&1; then
@@ -88,7 +167,7 @@ if [[ -z "$PY" ]]; then
 fi
 ok "Using $($PY --version 2>&1 | head -1) ($PY)"
 
-step 2 "$TOTAL" "Check venv module"
+step 3 "$TOTAL" "Check venv module"
 if ! "$PY" -c "import venv" 2>/dev/null; then
   fail "Python venv module is missing" \
     "Ubuntu/Debian: sudo apt install python3.11-venv" \
@@ -96,7 +175,7 @@ if ! "$PY" -c "import venv" 2>/dev/null; then
 fi
 ok "venv module available"
 
-step 3 "$TOTAL" "Create / refresh virtualenv"
+step 4 "$TOTAL" "Create / refresh virtualenv"
 if [[ ! -d venv ]]; then
   if ! "$PY" -m venv venv; then
     fail "Could not create ./venv" \
@@ -118,7 +197,7 @@ if [[ ! -x "$VPY" ]]; then
     "rm -rf venv && ./install.sh"
 fi
 
-step 4 "$TOTAL" "Install Python packages"
+step 5 "$TOTAL" "Install Python packages"
 REQ="requirements-runtime.txt"
 if [[ ! -f "$REQ" ]]; then
   REQ="requirements.txt"
@@ -143,7 +222,7 @@ if ! "$VPIP" install -r "$REQ"; then
 fi
 ok "Dependencies installed"
 
-step 5 "$TOTAL" "Create data folders & smoke-test imports"
+step 6 "$TOTAL" "Create data folders & smoke-test imports"
 mkdir -p data/jobs data/compounds data/logs exports
 if ! PYTHONPATH="$ROOT" "$VPY" -m src.utils.deps_check; then
   fail "Dependency import smoke-test failed" \
@@ -153,7 +232,7 @@ fi
 ok "All runtime packages import OK (streamlit, rdkit, …)"
 ok "Folders: data/, data/jobs, exports"
 
-step 6 "$TOTAL" "Finish"
+step 7 "$TOTAL" "Finish"
 ok "Install complete"
 echo
 tip "./run.sh"

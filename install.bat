@@ -2,7 +2,6 @@
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
-rem Enable ANSI colors on Windows 10+
 for /f "delims=" %%A in ('echo prompt $E^| cmd') do set "ESC=%%A"
 set "C_ACCENT=%ESC%[38;2;217;119;87m"
 set "C_OK=%ESC%[38;2;61;154;110m"
@@ -101,16 +100,14 @@ if errorlevel 1 (
 )
 
 echo %C_ACCENT%[4/6]%C_RESET% %C_BOLD%Install Python packages%C_RESET%
-set "REQ=requirements-runtime.txt"
-if not exist "%REQ%" set "REQ=requirements.txt"
-if not exist "%REQ%" (
+if not exist requirements.txt (
   echo.
   echo %C_ERR%+-- Error ------------------------------------------+%C_RESET%
-  echo %C_ERR%^|%C_RESET% requirements file not found                     %C_ERR%^|%C_RESET%
+  echo %C_ERR%^|%C_RESET% requirements.txt not found                        %C_ERR%^|%C_RESET%
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Run install.bat from the Quanta folder (project or standalone zip root)
+  echo   %C_ACCENT%·%C_RESET% Run install.bat from the Quanta project root
   echo.
   exit /b 1
 )
@@ -128,11 +125,11 @@ if errorlevel 1 (
   exit /b 1
 )
 echo   %C_OK%✓%C_RESET% pip upgraded
-pip install -r %REQ%
+pip install -r requirements.txt
 if errorlevel 1 (
   echo.
   echo %C_ERR%+-- Error ------------------------------------------+%C_RESET%
-  echo %C_ERR%^|%C_RESET% pip install failed                                %C_ERR%^|%C_RESET%
+  echo %C_ERR%^|%C_RESET% pip install -r requirements.txt failed            %C_ERR%^|%C_RESET%
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
@@ -149,8 +146,7 @@ if not exist data\jobs mkdir data\jobs
 if not exist data\compounds mkdir data\compounds
 if not exist data\logs mkdir data\logs
 if not exist exports mkdir exports
-set "PYTHONPATH=%CD%"
-python -m src.utils.deps_check
+python -c "import importlib; [importlib.import_module(m) for m in ('streamlit','rdkit','pandas','numpy','matplotlib','plotly','py3Dmol')]"
 if errorlevel 1 (
   echo.
   echo %C_ERR%+-- Error ------------------------------------------+%C_RESET%
@@ -164,14 +160,14 @@ if errorlevel 1 (
   exit /b 1
 )
 echo   %C_OK%✓%C_RESET% All runtime packages import OK (streamlit, rdkit, ...)
-echo   %C_OK%✓%C_RESET% Folders: data\, data\jobs, exports
+echo   %C_OK%✓%C_RESET% Folders: data\jobs, data\compounds, exports
 
 echo %C_ACCENT%[6/6]%C_RESET% %C_BOLD%Finish%C_RESET%
 echo   %C_OK%✓%C_RESET% Install complete
 echo.
 echo %C_DIM%  -- next --%C_RESET%
 echo   %C_BOLD%run.bat%C_RESET%
-echo %C_DIM%  Set Gaussian path on Settings page (Windows run mode)%C_RESET%
+echo %C_DIM%  Settings -^> Gaussian path (Windows run mode)%C_RESET%
 echo.
 echo %C_BOLD%  If the browser does not open by itself:%C_RESET%
 echo   %C_ACCENT%·%C_RESET% open http://localhost:8501

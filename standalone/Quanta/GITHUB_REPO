@@ -1,0 +1,3 @@
+# Copy to GITHUB_REPO (one line) for optional in-app update checks.
+# Bootstrap override: export QUANTA_GITHUB_REPO=owner/name
+cyril-ver-mar/quanta

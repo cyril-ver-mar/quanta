@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Quanta installer — end-user setup (standalone or project root)
+# Quanta installer — clean terminal UX
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -119,14 +119,10 @@ if [[ ! -x "$VPY" ]]; then
 fi
 
 step 4 "$TOTAL" "Install Python packages"
-REQ="requirements-runtime.txt"
-if [[ ! -f "$REQ" ]]; then
-  REQ="requirements.txt"
-fi
-if [[ ! -f "$REQ" ]]; then
-  fail "requirements file not found" \
-    "Run this script from the Quanta folder (project or standalone zip root)" \
-    "Expected: requirements-runtime.txt or requirements.txt"
+if [[ ! -f requirements.txt ]]; then
+  fail "requirements.txt not found" \
+    "Run this script from the Quanta project root" \
+    "Expected file: $ROOT/requirements.txt"
 fi
 if ! "$VPY" -m pip install --upgrade pip >/tmp/quanta_pip_up.log 2>&1; then
   fail "Failed to upgrade pip" \
@@ -135,8 +131,8 @@ if ! "$VPY" -m pip install --upgrade pip >/tmp/quanta_pip_up.log 2>&1; then
     "Retry: ./install.sh"
 fi
 ok "pip upgraded"
-if ! "$VPIP" install -r "$REQ"; then
-  fail "pip install -r $REQ failed" \
+if ! "$VPIP" install -r requirements.txt; then
+  fail "pip install -r requirements.txt failed" \
     "Check network access to PyPI" \
     "RDKit may take a few minutes on first install" \
     "Try: source venv/bin/activate && pip install -r requirements.txt"
@@ -145,17 +141,22 @@ ok "Dependencies installed"
 
 step 5 "$TOTAL" "Create data folders & smoke-test imports"
 mkdir -p data/jobs data/compounds data/logs exports
-if ! PYTHONPATH="$ROOT" "$VPY" -m src.utils.deps_check; then
+if ! "$VPY" -c "
+import importlib
+mods = ('streamlit','rdkit','pandas','numpy','matplotlib','plotly','py3Dmol')
+for m in mods:
+    importlib.import_module(m)
+"; then
   fail "Dependency import smoke-test failed" \
     "Re-run ./install.sh after fixing pip errors" \
-    "Activate venv and run: PYTHONPATH=. python -m src.utils.deps_check"
+    "Activate venv and run: pip install -r requirements.txt"
 fi
 ok "All runtime packages import OK (streamlit, rdkit, …)"
-ok "Folders: data/, data/jobs, exports"
+ok "Folders: data/jobs, data/compounds, exports"
 
 step 6 "$TOTAL" "Finish"
 ok "Install complete"
 echo
 tip "./run.sh"
-printf '%s  Windows: run.bat · Settings page for Gaussian path (Windows only)%s\n' "$C_DIM" "$C_RESET"
+printf '%s  Windows: run.bat · Settings → Gaussian path (Windows run mode)%s\n' "$C_DIM" "$C_RESET"
 echo

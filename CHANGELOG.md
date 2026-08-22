@@ -5,6 +5,17 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-08-22
+
+### Added
+- **standalone_version/** bootstrap installers (XPS-style): `install_quanta.sh`, `install_quanta.bat`, `install_quanta.ps1` — download latest GitHub release zip.
+- Full **standalone/Quanta/** distributable tree (app + pages + src + run scripts).
+- `scripts/build_standalone.py` to rebuild the standalone folder.
+
+### Changed
+- **install.sh** / **install.bat** — clean 6-step install (Python 3.11, venv, pip, inline import check); no separate install Python scripts.
+- **run.sh** / **run.bat** — verify deps before launch.
+
 ## [1.0.2] — 2026-08-22
 
 ### Added

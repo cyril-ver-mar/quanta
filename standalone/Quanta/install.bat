@@ -21,7 +21,64 @@ echo   +----------------------------------------------+%C_RESET%
 echo %C_DIM%  Gaussian DFT -^> Delta-SCF XPS workflow%C_RESET%
 echo.
 
-echo %C_ACCENT%[1/6]%C_RESET% %C_BOLD%Locate Python 3.11%C_RESET%
+echo %C_ACCENT%[1/7]%C_RESET% %C_BOLD%Ensure application files%C_RESET%
+if exist app.py if exist src (
+  echo   %C_OK%✓%C_RESET% Application files present
+  goto :after_fetch
+)
+set "DL_REPO=cyril-ver-mar/quanta"
+set "DL_TAG=v1.0.2"
+if exist VERSION (
+  for /f "usebackq delims=" %%V in ("VERSION") do set "DL_TAG=v%%V"
+)
+if exist GITHUB_REPO (
+  for /f "usebackq delims=" %%R in ("GITHUB_REPO") do set "DL_REPO=%%R"
+)
+set "DL_SRC="
+if exist _quanta_dl rmdir /s /q _quanta_dl
+where git >nul 2>&1
+if !ERRORLEVEL!==0 (
+  git clone --depth 1 --branch !DL_TAG! "https://github.com/!DL_REPO!/quanta.git" _quanta_dl >nul 2>&1
+  if exist _quanta_dl\standalone\Quanta\app.py set "DL_SRC=_quanta_dl\standalone\Quanta"
+  if not defined DL_SRC if exist _quanta_dl\app.py set "DL_SRC=_quanta_dl"
+)
+if not defined DL_SRC (
+  echo   %C_ACCENT%→%C_RESET% Downloading from GitHub (!DL_TAG!)...
+  powershell -NoProfile -Command ^
+    "try { Invoke-WebRequest -Uri 'https://github.com/!DL_REPO!/archive/refs/tags/!DL_TAG!.zip' -OutFile '_quanta.zip' -UseBasicParsing; Expand-Archive -Path '_quanta.zip' -DestinationPath '_quanta_unzip' -Force } catch { exit 1 }"
+  if errorlevel 1 goto :fetch_failed
+  for /d %%D in (_quanta_unzip\quanta-*) do (
+    if exist "%%D\standalone\Quanta\app.py" set "DL_SRC=%%D\standalone\Quanta"
+    if not defined DL_SRC if exist "%%D\app.py" set "DL_SRC=%%D"
+  )
+)
+if not defined DL_SRC goto :fetch_failed
+xcopy /E /I /Y /Q "!DL_SRC!\*" . >nul
+if exist _quanta_dl rmdir /s /q _quanta_dl
+if exist _quanta_unzip rmdir /s /q _quanta_unzip
+if exist _quanta.zip del /q _quanta.zip
+echo   %C_OK%✓%C_RESET% Downloaded Quanta !DL_TAG! from GitHub
+goto :after_fetch
+
+:fetch_failed
+if exist _quanta_dl rmdir /s /q _quanta_dl
+if exist _quanta_unzip rmdir /s /q _quanta_unzip
+if exist _quanta.zip del /q _quanta.zip
+echo.
+echo %C_ERR%+-- Error ------------------------------------------+%C_RESET%
+echo %C_ERR%^|%C_RESET% Could not download Quanta application               %C_ERR%^|%C_RESET%
+echo %C_ERR%+----------------------------------------------------+%C_RESET%
+echo.
+echo %C_BOLD%How to fix%C_RESET%
+echo   %C_ACCENT%·%C_RESET% Check internet access
+echo   %C_ACCENT%·%C_RESET% Install Git for Windows, or ensure PowerShell works
+echo   %C_ACCENT%·%C_RESET% Clone full repo: git clone https://github.com/cyril-ver-mar/quanta.git
+echo.
+exit /b 1
+
+:after_fetch
+
+echo %C_ACCENT%[2/7]%C_RESET% %C_BOLD%Locate Python 3.11%C_RESET%
 set "PY="
 where py >nul 2>&1
 if %ERRORLEVEL%==0 (
@@ -57,7 +114,7 @@ if not defined PY (
 echo   %C_OK%✓%C_RESET% Using %PY%
 %PY% --version
 
-echo %C_ACCENT%[2/6]%C_RESET% %C_BOLD%Check venv module%C_RESET%
+echo %C_ACCENT%[3/7]%C_RESET% %C_BOLD%Check venv module%C_RESET%
 %PY% -c "import venv" >nul 2>&1
 if errorlevel 1 (
   echo.
@@ -73,7 +130,7 @@ if errorlevel 1 (
 )
 echo   %C_OK%✓%C_RESET% venv module available
 
-echo %C_ACCENT%[3/6]%C_RESET% %C_BOLD%Create / refresh virtualenv%C_RESET%
+echo %C_ACCENT%[4/7]%C_RESET% %C_BOLD%Create / refresh virtualenv%C_RESET%
 if not exist "venv\Scripts\python.exe" (
   %PY% -m venv venv
   if errorlevel 1 (
@@ -100,7 +157,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo %C_ACCENT%[4/6]%C_RESET% %C_BOLD%Install Python packages%C_RESET%
+echo %C_ACCENT%[5/7]%C_RESET% %C_BOLD%Install Python packages%C_RESET%
 set "REQ=requirements-runtime.txt"
 if not exist "%REQ%" set "REQ=requirements.txt"
 if not exist "%REQ%" (
@@ -144,7 +201,7 @@ if errorlevel 1 (
 )
 echo   %C_OK%✓%C_RESET% Dependencies installed
 
-echo %C_ACCENT%[5/6]%C_RESET% %C_BOLD%Create data folders ^& smoke-test imports%C_RESET%
+echo %C_ACCENT%[6/7]%C_RESET% %C_BOLD%Create data folders ^& smoke-test imports%C_RESET%
 if not exist data\jobs mkdir data\jobs
 if not exist data\compounds mkdir data\compounds
 if not exist data\logs mkdir data\logs
@@ -166,7 +223,7 @@ if errorlevel 1 (
 echo   %C_OK%✓%C_RESET% All runtime packages import OK (streamlit, rdkit, ...)
 echo   %C_OK%✓%C_RESET% Folders: data\, data\jobs, exports
 
-echo %C_ACCENT%[6/6]%C_RESET% %C_BOLD%Finish%C_RESET%
+echo %C_ACCENT%[7/7]%C_RESET% %C_BOLD%Finish%C_RESET%
 echo   %C_OK%✓%C_RESET% Install complete
 echo.
 echo %C_DIM%  -- next --%C_RESET%
