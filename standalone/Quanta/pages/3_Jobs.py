@@ -21,7 +21,6 @@ from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 
-st.set_page_config(page_title="Quanta · Jobs", layout="wide")
 init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language

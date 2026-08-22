@@ -18,7 +18,6 @@ from src.utils.i18n import t
 from src.utils.secrets import clear_secrets_cache, load_secrets, secrets_status
 from src.utils.version import version_label
 
-st.set_page_config(page_title="Quanta · Settings", layout="wide")
 load_secrets()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language

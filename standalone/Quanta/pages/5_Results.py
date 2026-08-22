@@ -6,29 +6,25 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.core.models import Compound, JobStatus
-from src.core.dscf import StepStatus
-from src.db.repositories import CompoundRepository, JobRepository
+from src.db.repositories import CompoundRepository
 from src.services.job_service import JobService
 from src.services.results_service import ResultsService
-from src.services import project_service
 from src.ui.components.sidebar import render_sidebar
 from src.ui.components.log_viewer import list_job_logs, render_gaussian_log_viewer
+from src.ui.components.spectrum_panel import render_simulated_spectra
 from src.ui.components.workflow_steps import render_workflow_steps
-from src.ui.project_state import get_project, project_compound_ids, set_project
+from src.ui.project_state import get_project, project_compound_ids
 from src.ui.session_keys import init_session_state
 from src.utils.config import AppSettings
 from src.utils.i18n import t
-from src.utils.paths import FIXTURES_DIR, job_dir
+from src.utils.paths import job_dir
 
-st.set_page_config(page_title="Quanta · Results", layout="wide")
 init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
@@ -42,69 +38,7 @@ if get_project() is None:
 pids = project_compound_ids()
 jobs = JobService().list_jobs_for_compounds(pids)
 results = ResultsService()
-
-st.subheader(t("results_fixture", lang))
-st.caption(t("results_chong_hint", lang))
-if st.button(t("results_chong_btn", lang)):
-    try:
-        from src.services.fixture_service import import_chong_test_molecules
-
-        proj = get_project()
-        assert proj is not None
-        imported = import_chong_test_molecules(proj)
-        set_project(project_service.load_project(proj.id))
-        names = ", ".join(f"{n} (#{cid})" for n, cid in imported)
-        st.success(t("results_chong_ok", lang, names=names))
-        st.rerun()
-    except Exception as exc:
-        st.error(str(exc))
-
-if st.button(t("results_fixture_btn", lang)):
-    import shutil
-
-    crepo = CompoundRepository()
-    jrepo = JobRepository()
-    js = JobService()
-
-    cid = crepo.add(
-        Compound(
-            id=None,
-            name="melanine",
-            source_format="gjf",
-            source_path=str(FIXTURES_DIR / "melanine" / "melanine.gjf"),
-            charge=0,
-            multiplicity=1,
-            formula="C3H6N6",
-            n_atoms=15,
-            meta_json={"elements": {"C": 3, "N": 6, "H": 6}},
-        )
-    )
-    proj = get_project()
-    jid = js.create_job(
-        cid,
-        settings,
-        name="melanine_fixture",
-        project_name=proj.name if proj else None,
-    )
-    d = job_dir(jid)
-    shutil.copy2(FIXTURES_DIR / "melanine" / "MELANINE.LOG", d / "raw" / f"job_{jid}_01_opt.log")
-    shutil.copy2(FIXTURES_DIR / "melanine" / "melanine.gjf", d / "input" / "melanine.gjf")
-    steps = js.get_steps(jid)
-    for step in steps:
-        if step.key == "opt":
-            step.status = StepStatus.COMPLETED
-            step.energy_ha = -493.0
-    js.save_steps(jid, steps)
-    job = jrepo.get(jid)
-    if job:
-        job.status = JobStatus.QUEUED
-        jrepo.update(job)
-    st.info(t("results_fixture_note", lang).format(job_id=jid))
-    st.session_state.selected_job_id = jid
-    proj = get_project()
-    if proj is not None:
-        project_service.add_compound_to_project(proj, cid, label="melanine")
-        set_project(project_service.load_project(proj.id))
+compounds = CompoundRepository()
 
 if not jobs:
     st.info(t("workflow_no_jobs", lang))
@@ -168,21 +102,19 @@ else:
                     file_name="core_levels.csv",
                 )
 
-        st.subheader(t("results_spectra", lang))
-        for element in ("C", "N", "O"):
-            spec = job_dir(jid) / "curated" / f"xps_{element}1s.csv"
-            if not spec.exists():
-                continue
-            df = pd.read_csv(spec)
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=df["binding_ev"], y=df["intensity"], mode="lines", name=f"{element}1s"))
-            fig.update_layout(
-                title=t("results_spectrum_title", lang, element=element),
-                xaxis_title=t("results_be_axis", lang),
-                yaxis_title=t("results_intensity_axis", lang),
-                xaxis_autorange="reversed",
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        job_obj = job_svc.get(jid)
+        compound_name = None
+        if job_obj is not None:
+            comp = compounds.get(job_obj.compound_id)
+            if comp is not None:
+                compound_name = comp.name
+
+        render_simulated_spectra(
+            summary,
+            lang=lang,
+            compound_name=compound_name,
+            default_fwhm=float(settings.xps_fwhm_ev),
+        )
 
     job_obj = job_svc.get(jid)
     gauss_cwd = (job_obj.meta_json or {}).get("gaussian_cwd") if job_obj else None

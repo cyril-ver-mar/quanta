@@ -5,6 +5,16 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.22] — 2026-08-23
+
+### Added
+- **Simulated XPS spectra on Results** — Gaussian / Lorentzian / Voigt / Pseudo-Voigt with global FWHM and GL fraction; toggleable reference BE overlays (Chong 2007 for ethane/hydrazine; XPS-Deconv library otherwise).
+- **Spectrum exports** — CSV, Excel, PNG, JPEG, TIFF.
+- **Translated Streamlit navigation** — sidebar page titles follow EN/RU language (same pattern as XPS-Deconv).
+
+### Changed
+- Chong / melanine **test molecules** moved from Results to **Compounds**.
+
 ## [1.0.21] — 2026-08-23
 
 ### Fixed

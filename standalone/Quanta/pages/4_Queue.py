@@ -25,7 +25,6 @@ from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.paths import job_dir
 
-st.set_page_config(page_title="Quanta · Queue", layout="wide")
 init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language

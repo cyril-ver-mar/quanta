@@ -23,7 +23,9 @@ def render_sidebar(settings: AppSettings) -> AppSettings:
     if lang != settings.language:
         settings.language = lang
         settings.save()
+        st.session_state["language"] = lang
         st.rerun()
+    st.session_state["language"] = lang
 
     mode = t("mode_run", lang) if gaussian_available(settings) else t("mode_analyze", lang)
     st.sidebar.info(mode)

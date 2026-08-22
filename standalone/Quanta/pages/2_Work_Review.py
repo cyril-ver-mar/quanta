@@ -22,7 +22,6 @@ from src.utils.i18n import t
 from src.services.compound_service import CompoundService
 from src.services.job_service import JobService
 
-st.set_page_config(page_title="Quanta · Work review", layout="wide")
 init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
