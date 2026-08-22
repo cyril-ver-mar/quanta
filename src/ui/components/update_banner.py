@@ -58,14 +58,22 @@ def _status_error_text(status: UpdateStatus, lang: str) -> str | None:
     )
 
 
-def _ensure_checked(*, force: bool = False, use_cache: bool = True) -> UpdateStatus:
-    """Run network check once per Streamlit session (every app launch)."""
+def _ensure_checked(*, force: bool = False) -> UpdateStatus:
+    """Run network check once per Streamlit session (every app launch).
+
+    Disk cache only applies to rate-limit / error backoff — successful
+    "latest version" results are never reused from disk, so a newly published
+    release appears on the next app start (not an hour later).
+    """
     if not force:
         cached = st.session_state.get(_SESSION_STATUS)
         if isinstance(cached, UpdateStatus):
             return cached
     try:
-        status = check_for_update(local_version=get_version(), use_cache=use_cache and not force)
+        status = check_for_update(
+            local_version=get_version(),
+            use_cache=not force,
+        )
     except Exception as exc:  # noqa: BLE001 — never block UI on updater
         logger.exception("Update check failed")
         status = UpdateStatus(

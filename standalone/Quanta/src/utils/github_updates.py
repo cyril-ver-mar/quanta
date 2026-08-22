@@ -34,8 +34,11 @@ USER_AGENT = "Quanta-updater"
 API_TIMEOUT_S = 8.0
 PREFERRED_ASSET_SUBSTR = ("standalone", "quanta")
 CACHE_PATH = DATA_DIR / "update_check_cache.json"
-CACHE_TTL_OK_S = 3600.0  # 1 h — avoid hammering GitHub on every page
+# Only error/backoff responses are cached on disk. Successful "latest" is never
+# disk-cached — otherwise a check just before publishing hides the new release
+# for up to an hour. Streamlit session_state already dedupes within one run.
 CACHE_TTL_RATE_LIMIT_S = 900.0  # 15 min backoff after 403
+CACHE_TTL_ERROR_S = 60.0
 
 ERR_NOT_CONFIGURED = "not_configured"
 ERR_NETWORK = "network"
@@ -199,20 +202,9 @@ def _load_disk_cache(repo: str) -> tuple[Optional[ReleaseInfo], Optional[str], s
     ttl = float(payload.get("ttl_s") or 0)
     if ttl <= 0 or (time.time() - fetched_at) > ttl:
         return None
+    # Successful release payloads are not reused from disk (stale "up to date").
     if payload.get("ok"):
-        rel = payload.get("release") or {}
-        return (
-            ReleaseInfo(
-                tag=str(rel.get("tag") or ""),
-                version=str(rel.get("version") or ""),
-                html_url=str(rel.get("html_url") or ""),
-                zip_url=rel.get("zip_url"),
-                zip_name=rel.get("zip_name"),
-                name=str(rel.get("name") or ""),
-            ),
-            None,
-            "",
-        )
+        return None
     return None, payload.get("error_code"), str(payload.get("detail") or "")
 
 
@@ -439,7 +431,7 @@ def fetch_latest_release_outcome(
     if best is None:
         code = last_err or ERR_HTTP_404
         detail = last_detail or "no releases or version tags found"
-        ttl = CACHE_TTL_RATE_LIMIT_S if code == ERR_HTTP_403 else 60.0
+        ttl = CACHE_TTL_RATE_LIMIT_S if code == ERR_HTTP_403 else CACHE_TTL_ERROR_S
         _save_disk_cache(repo, release=None, error_code=code, detail=detail, ttl_s=ttl)
         return None, code, detail
 
@@ -457,7 +449,7 @@ def fetch_latest_release_outcome(
             c for c in same_ver if c.zip_url and "archive/refs/tags" not in c.zip_url
         )
 
-    _save_disk_cache(repo, release=best, error_code=None, detail="", ttl_s=CACHE_TTL_OK_S)
+    # Do not disk-cache successful lookups — session_state covers in-app navigation.
     return best, None, ""
 
 

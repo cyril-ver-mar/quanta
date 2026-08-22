@@ -138,24 +138,50 @@ def test_check_for_update_not_configured(tmp_path: Path, monkeypatch: pytest.Mon
     assert status.error_code == "not_configured"
 
 
-def test_disk_cache_avoids_repeat_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_disk_cache_skips_stale_ok_but_keeps_rate_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Successful lookups must not be reused from disk (hides new releases).
+
+    Rate-limit errors still short-circuit to avoid hammering GitHub.
+    """
     cache = tmp_path / "update_check_cache.json"
     monkeypatch.setattr("src.utils.github_updates.CACHE_PATH", cache)
     monkeypatch.setattr("src.utils.github_updates.DATA_DIR", tmp_path)
     release = ReleaseInfo(
-        tag="v1.0.8",
-        version="1.0.8",
-        html_url="https://github.com/acme/quanta/releases/tag/v1.0.8",
+        tag="v1.0.9",
+        version="1.0.9",
+        html_url="https://github.com/acme/quanta/releases/tag/v1.0.9",
         zip_url="https://example/standalone.zip",
         zip_name="standalone.zip",
     )
     _save_disk_cache("acme/quanta", release=release, error_code=None, detail="", ttl_s=3600.0)
-    with patch("urllib.request.urlopen") as mock_open:
-        got, err, detail = fetch_latest_release_outcome("acme/quanta", use_cache=True)
-    mock_open.assert_not_called()
+
+    def fake_get(url: str):
+        if "/tags" in url:
+            return ([{"name": "v1.0.10"}, {"name": "v1.0.9"}], None, "")
+        if "/releases" in url:
+            return ([], None, "")
+        return None, "unexpected", url
+
+    with patch("src.utils.github_updates._github_get_json", side_effect=fake_get) as mock_get:
+        got, err, _ = fetch_latest_release_outcome("acme/quanta", use_cache=True)
+    assert mock_get.called
     assert err is None
     assert got is not None
-    assert got.version == "1.0.8"
+    assert got.version == "1.0.10"
+
+    _save_disk_cache(
+        "acme/quanta",
+        release=None,
+        error_code=ERR_HTTP_403,
+        detail="rate limit",
+        ttl_s=3600.0,
+    )
+    with patch("urllib.request.urlopen") as mock_open:
+        got2, err2, detail2 = fetch_latest_release_outcome("acme/quanta", use_cache=True)
+    mock_open.assert_not_called()
+    assert got2 is None
+    assert err2 == ERR_HTTP_403
+    assert "rate limit" in detail2
 
 
 def test_fetch_picks_highest_semver_from_tags(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
