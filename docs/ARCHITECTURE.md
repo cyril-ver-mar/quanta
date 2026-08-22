@@ -1,6 +1,6 @@
 # Quanta — architecture
 
-See also `docs/AI-deployment/ARCHITECTURE.md` (general kit) and `docs/DECISIONS.md`.
+See also [`docs/DECISIONS.md`](DECISIONS.md).
 
 ## Run
 
@@ -20,10 +20,11 @@ src/core/       # domain models, XPS math, Gaussian input text
 src/db/         # SQLite schema + repositories
 src/services/   # compounds, jobs, runner, parser, XPS, archive
 src/ui/         # thin Streamlit components
+scripts/        # build_standalone.py (local end-user zip)
 data/           # runtime (gitignored): quanta.db, jobs/, cancel flags
 fixtures/       # melanine sample .gjf / .LOG
 exports/        # portable archives
-docs/           # DECISIONS, Instruction, AI-deployment kit
+docs/           # DECISIONS, ARCHITECTURE, Instruction snapshots
 ```
 
 ## Import direction

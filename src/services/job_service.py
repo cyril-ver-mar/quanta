@@ -272,7 +272,12 @@ class JobService:
 
     def _rebuild_corehole_steps(self, job_id: int, settings: AppSettings) -> None:
         """Remap orbitals and rewrite core-hole .gjf files after a successful neutral SP."""
-        from src.core.dscf import assign_core_orbitals, homo_orbital_index, list_xps_atoms
+        from src.core.dscf import (
+            assign_core_orbitals,
+            corehole_alter_pair,
+            corehole_vacancy_index,
+            list_xps_atoms,
+        )
         from src.services.gaussian_parser import parse_gaussian_log
         from src.services.compound_service import mol_to_atoms
 
@@ -289,12 +294,12 @@ class JobService:
         neutral_log = job_dir(job_id) / "raw" / neutral.log_name
         parsed = parse_gaussian_log(neutral_log)
         orb_map = assign_core_orbitals(parsed.orbitals, xps_atoms)
-        homo = homo_orbital_index(parsed.orbitals)
+        vacancy = corehole_vacancy_index(parsed.orbitals)
         for step in steps:
             if step.kind != StepKind.COREHOLE_SP or step.atom_index is None:
                 continue
-            step.orbital_index = orb_map[step.atom_index]
-            step.homo_index = homo
+            core_mo = orb_map[step.atom_index]
+            step.orbital_index, step.homo_index = corehole_alter_pair(core_mo, vacancy)
             self.write_corehole_gjf(job_id, step, settings)
             if step.status != StepStatus.COMPLETED:
                 step.status = StepStatus.QUEUED

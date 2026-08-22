@@ -147,7 +147,7 @@ if not exist data\jobs mkdir data\jobs
 if not exist data\compounds mkdir data\compounds
 if not exist data\logs mkdir data\logs
 if not exist exports mkdir exports
-python -c "import importlib; [importlib.import_module(m) for m in ('streamlit','rdkit','pandas','numpy','matplotlib','plotly','py3Dmol')]"
+python -c "import importlib; [importlib.import_module(m) for m in ('streamlit','rdkit','pandas','numpy','matplotlib','plotly','py3Dmol','scipy','openpyxl','PIL')]"
 if errorlevel 1 (
   echo.
   echo %C_ERR%+-- Error ------------------------------------------+%C_RESET%

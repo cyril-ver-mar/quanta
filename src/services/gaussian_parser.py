@@ -16,6 +16,8 @@ ERROR_RE = re.compile(r"Error termination", re.I)
 STEP_RE = re.compile(r"Step number\s+(\d+)", re.I)
 OCC_LINE_RE = re.compile(r"Alpha\s+occ\.\s+eigenvalues\s+--\s+(.+)", re.I)
 VIRT_LINE_RE = re.compile(r"Alpha\s+virt\.\s+eigenvalues\s+--\s+(.+)", re.I)
+# Gaussian wraps eigenvalues onto continuation lines: "                         --  -0.5 ..."
+EIG_CONT_RE = re.compile(r"^\s+--\s+(.+)$")
 
 _DIAGNOSTIC_LINE_RES = (
     re.compile(r"Error termination", re.I),
@@ -85,7 +87,14 @@ def extract_error_snippets(text: str, *, context: int = 4, max_snippets: int = 6
 
 
 def _floats(chunk: str) -> list[float]:
-    return [float(x) for x in chunk.split() if re.fullmatch(r"[+-]?\d+\.\d+", x)]
+    """Parse eigenvalue tokens (plain or scientific notation)."""
+    out: list[float] = []
+    for tok in chunk.split():
+        try:
+            out.append(float(tok.replace("D", "E").replace("d", "e")))
+        except ValueError:
+            continue
+    return out
 
 
 def parse_gaussian_log(path: Path | str) -> ParseResult:
@@ -100,17 +109,36 @@ def parse_gaussian_log(path: Path | str) -> ParseResult:
     steps = STEP_RE.findall(text)
     result.opt_steps = int(steps[-1]) if steps else len(result.scf_energies_ha)
 
-    # Orbitals after the last SCF Done (final electronic structure)
+    # Orbitals after the last SCF Done (final electronic structure).
+    # Include " --  ..." continuation lines; missing them under-counts n_occ and
+    # makes Guess=Alter swap two occupied MOs (valence hole instead of 1s).
     occ_vals: list[float] = []
     virt_vals: list[float] = []
     last_scf = None
     for m in SCF_RE.finditer(text):
         last_scf = m
     tail_text = text[last_scf.end() :] if last_scf is not None else text
-    for m in OCC_LINE_RE.finditer(tail_text):
-        occ_vals.extend(_floats(m.group(1)))
-    for m in VIRT_LINE_RE.finditer(tail_text):
-        virt_vals.extend(_floats(m.group(1)))
+    mode: str | None = None
+    for line in tail_text.splitlines():
+        m_occ = OCC_LINE_RE.search(line)
+        if m_occ:
+            mode = "occ"
+            occ_vals.extend(_floats(m_occ.group(1)))
+            continue
+        m_virt = VIRT_LINE_RE.search(line)
+        if m_virt:
+            mode = "virt"
+            virt_vals.extend(_floats(m_virt.group(1)))
+            continue
+        m_cont = EIG_CONT_RE.match(line)
+        if m_cont and mode == "occ":
+            occ_vals.extend(_floats(m_cont.group(1)))
+            continue
+        if m_cont and mode == "virt":
+            virt_vals.extend(_floats(m_cont.group(1)))
+            continue
+        if mode and line.strip() and not line.strip().startswith("--"):
+            mode = None
 
     idx = 1
     for e in occ_vals:

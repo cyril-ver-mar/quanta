@@ -141,13 +141,14 @@ def write_checkpoint_job(
     mem_mb: int,
     alter_swap: tuple[int, int] | None = None,
 ) -> str:
-    """SP from checkpoint; optional Guess=Alter (core orbital ↔ HOMO).
+    """SP from checkpoint; optional Guess=Alter (core 1s ↔ β vacancy).
 
     G09W often rejects ``%oldchk=``. The runner copies ``oldchk`` → ``chk`` on disk
     before launch; the input only references ``%chk=``.
 
     Guess=Alter (UHF/UKS) needs two blank-line-terminated sections: α then β.
-    XPS ΔSCF convention: empty α, swap on β (see Gaussian Guess=Alter examples).
+    XPS ΔSCF convention: empty α; on β swap the target **occupied 1s** with the
+    **vacant** MO left by Guess=Read (former HOMO index ``n_occ``, not ``n_occ-1``).
     """
     _ = oldchk  # staged by GaussianRunner before launch
     lines: list[str] = [
@@ -166,7 +167,7 @@ def write_checkpoint_job(
         lines.extend(
             [
                 "",  # empty alpha alteration section
-                f"{a} {b}",  # beta: swap core orbital with HOMO
+                f"{a} {b}",  # beta: swap core 1s with vacant MO (former HOMO)
                 "",
             ]
         )

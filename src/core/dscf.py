@@ -43,8 +43,8 @@ class DscfStep:
     energy_ha: float | None = None
     atom_index: int | None = None
     element: str | None = None
-    orbital_index: int | None = None
-    homo_index: int | None = None
+    orbital_index: int | None = None  # 1s MO to ionize (1-based)
+    homo_index: int | None = None  # β vacancy MO after Guess=Read (= n_occ)
     error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -212,7 +212,8 @@ def build_workflow_steps(
                 title=f"Step {2 + n} · Core hole on {label}",
                 user_hint=(
                     f"UKS single-point: core-ionized (+1) with a 1s hole on atom "
-                    f"{atom_idx + 1} ({element}). Guess=Alter swaps that 1s with HOMO. "
+                    f"{atom_idx + 1} ({element}). Guess=Alter swaps that 1s with the "
+                    f"vacant β MO (former HOMO / n_occ), not a valence occupied MO. "
                     f"BE = E(cation, core hole) − E₀. Requires Step 2."
                 ),
                 status=StepStatus.WAITING,
@@ -249,6 +250,33 @@ def homo_orbital_index(orbitals: list[Orbital]) -> int:
     if not occupied:
         raise ValueError("No occupied orbitals in neutral SP log")
     return max(occupied, key=lambda o: o.energy_ha).index
+
+
+def corehole_vacancy_index(orbitals: list[Orbital]) -> int:
+    """MO index that must be vacant in the β set of the doublet cation.
+
+    Closed-shell neutral with N doubly occupied MOs → remove one β electron →
+    default Guess=Read leaves the vacancy on MO **N** (former HOMO / first virtual
+    in the β set). Guess=Alter must swap the target **occupied 1s** with this
+    **virtual** index. Swapping two occupied MOs does nothing to the vacancy, so
+    the hole stays valence (outer shell).
+    """
+    occupied = [o for o in orbitals if o.occupancy > 0.1]
+    if not occupied:
+        raise ValueError("No occupied orbitals in neutral SP log")
+    return len(occupied)
+
+
+def corehole_alter_pair(core_mo: int, vacancy_mo: int) -> tuple[int, int]:
+    """Validate and return (core, vacancy) for β Guess=Alter."""
+    if core_mo < 1 or vacancy_mo < 1:
+        raise ValueError(f"Invalid Alter pair: core={core_mo}, vacancy={vacancy_mo}")
+    if core_mo >= vacancy_mo:
+        raise ValueError(
+            f"Core MO {core_mo} must be below vacancy MO {vacancy_mo} "
+            "(vacancy = former HOMO / first virtual in the cation β set)"
+        )
+    return core_mo, vacancy_mo
 
 
 def compute_binding_energies(

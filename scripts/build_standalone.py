@@ -187,7 +187,7 @@ def main() -> None:
         raise SystemExit("Hardcoded user paths in standalone build:\n  " + "\n  ".join(bad))
 
     print(f"Standalone build ready: {OUT}")
-    print("Zip standalone/Quanta/ for distribution, or commit the folder to git.")
+    print("Zip standalone/Quanta/ and attach it to a GitHub Release (folder is gitignored).")
 
 
 if __name__ == "__main__":

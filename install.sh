@@ -143,7 +143,7 @@ step 5 "$TOTAL" "Create data folders & smoke-test imports"
 mkdir -p data/jobs data/compounds data/logs exports
 if ! "$VPY" -c "
 import importlib
-mods = ('streamlit','rdkit','pandas','numpy','matplotlib','plotly','py3Dmol')
+mods = ('streamlit','rdkit','pandas','numpy','matplotlib','plotly','py3Dmol','scipy','openpyxl','PIL')
 for m in mods:
     importlib.import_module(m)
 "; then

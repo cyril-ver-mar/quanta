@@ -5,6 +5,9 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+### Changed
+- **Lean GitHub source** — stop tracking `standalone/`, `standalone_version/`, `docs/AI-deployment/`, and `.cursor/`. Build end-user zips with `scripts/build_standalone.py` and attach them to Releases.
+
 ## [1.0.22] — 2026-08-23
 
 ### Added

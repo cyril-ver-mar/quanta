@@ -27,3 +27,11 @@ exports/
 dist/
 build/
 EXample_XPS.pdf
+
+# Built / local-only (not part of lean GitHub source)
+standalone/
+standalone_version/
+docs/AI-deployment/
+.cursor/
+Sources/
+.tmp_pdf/

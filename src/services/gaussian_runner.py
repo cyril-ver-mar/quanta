@@ -12,7 +12,8 @@ from src.core.dscf import (
     StepKind,
     StepStatus,
     assign_core_orbitals,
-    homo_orbital_index,
+    corehole_alter_pair,
+    corehole_vacancy_index,
     is_dscf_workflow,
     list_xps_atoms,
     next_runnable_step,
@@ -232,12 +233,12 @@ class GaussianRunner:
             ).log_name
             parsed = parse_gaussian_log(neutral_log)
             orb_map = assign_core_orbitals(parsed.orbitals, xps_atoms)
-            homo = homo_orbital_index(parsed.orbitals)
+            vacancy = corehole_vacancy_index(parsed.orbitals)
             for step in steps:
                 if step.kind != StepKind.COREHOLE_SP or step.atom_index is None:
                     continue
-                step.orbital_index = orb_map[step.atom_index]
-                step.homo_index = homo
+                core_mo = orb_map[step.atom_index]
+                step.orbital_index, step.homo_index = corehole_alter_pair(core_mo, vacancy)
                 self.jobs.write_corehole_gjf(job_id, step, settings)
                 step.status = StepStatus.QUEUED
             self.jobs.save_steps(job_id, steps)

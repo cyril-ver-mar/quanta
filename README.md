@@ -1,15 +1,8 @@
 # Quanta
 
-**Version:** see [`VERSION`](VERSION) (current release tagged `v1.0.0`).
+**Version:** see [`VERSION`](VERSION).
 
-Local Streamlit app for **Gaussian 09** DFT jobs (Windows), portable archives, and **XPS** analysis (Windows + Mac).
-
-Method target: Yamada & Sato, *TANSO* 2015 (`EXample_XPS.pdf`) — OPT B3LYP/6-31G(d), `pop=full`, core MO → C/N/O spectra.
-
-## Agent / architecture kit
-
-See [docs/AI-deployment/](docs/AI-deployment/) — deploy checklist and Streamlit playbooks.  
-Product choices: [docs/DECISIONS.md](docs/DECISIONS.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Local Streamlit app for **Gaussian 09** DFT jobs (Windows) and **ΔSCF XPS** analysis (Windows + Mac).
 
 ## Install / run
 
@@ -41,13 +34,36 @@ Activate `venv` in every new terminal before manual commands.
 ## First check (no Gaussian)
 
 1. `./run.sh`
-2. **Results** → “Curate fixtures/melanine…”
-3. Inspect SCF chart, core table, C/N XPS plots
+2. **Compounds** → add a test molecule (or melanine fixture)
+3. **Results** → inspect energies / XPS plots when a job has finished
 
 ## Layout
 
+```text
+app.py, launch.py, pages/   # Streamlit UI
+src/                        # core, services, db, ui helpers
+tests/                      # pytest
+scripts/build_standalone.py # build end-user zip locally (not in git)
+fixtures/                   # sample inputs
+docs/                       # DECISIONS, ARCHITECTURE
+```
+
 Job files: `data/jobs/<id>/{input,raw,curated,logs}/`  
 DB: `data/quanta.db` (gitignored)
+
+## End-user package
+
+This repository is **source only**. To build a clean installable folder:
+
+```bash
+python scripts/build_standalone.py
+# → standalone/Quanta/  (gitignored; zip and attach to a GitHub Release)
+```
+
+## Docs
+
+- Product choices: [`docs/DECISIONS.md`](docs/DECISIONS.md)
+- Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Versioning
 

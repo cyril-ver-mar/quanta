@@ -59,7 +59,7 @@ if not exist app.py (
   echo.
   echo %C_BOLD%How to fix%C_RESET%
   echo   %C_ACCENT%*%C_RESET% Run install.bat from the Quanta project folder
-  echo   %C_ACCENT%*%C_RESET% Or use standalone_version\install_quanta.bat to download the app
+  echo   %C_ACCENT%*%C_RESET% Or clone: https://github.com/cyril-ver-mar/quanta
   echo.
   pause
   exit /b 1

@@ -7,6 +7,8 @@ from src.core.dscf import (
     assign_core_orbitals,
     build_workflow_steps,
     compute_binding_energies,
+    corehole_alter_pair,
+    corehole_vacancy_index,
     homo_orbital_index,
     list_xps_atoms,
 )
@@ -48,6 +50,8 @@ def test_assign_core_orbitals_and_be():
     mapping = assign_core_orbitals(orbitals, xps_atoms)
     assert mapping == {0: 1, 1: 2}
     assert homo_orbital_index(orbitals) == 3
+    assert corehole_vacancy_index(orbitals) == 3
+    assert corehole_alter_pair(1, 3) == (1, 3)
 
     levels = compute_binding_energies(
         e0_ha=-100.0,
@@ -56,3 +60,19 @@ def test_assign_core_orbitals_and_be():
     )
     assert len(levels) == 2
     assert levels[0].binding_ev_final > 0
+
+
+def test_corehole_alter_pair_rejects_occupied_swap():
+    """Vacancy must be n_occ (former HOMO), not n_occ-1 (still occupied in β)."""
+    # Ethane-like: 9 occupied → Alter must be (core, 9), never (core, 8)
+    orbitals = [
+        Orbital(index=i, energy_ha=-20.0 + i, occupancy=2.0) for i in range(1, 10)
+    ]
+    orbitals.append(Orbital(index=10, energy_ha=0.1, occupancy=0.0))
+    assert corehole_vacancy_index(orbitals) == 9
+    assert corehole_alter_pair(1, 9) == (1, 9)
+    try:
+        corehole_alter_pair(1, 1)
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass

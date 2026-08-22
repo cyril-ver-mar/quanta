@@ -33,6 +33,12 @@ def spectrum_excel_bytes(
     parameters: dict[str, object] | None = None,
 ) -> bytes:
     """One sheet per element curve + optional Peaks / Parameters sheets."""
+    try:
+        import openpyxl  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "Excel export needs openpyxl. Install with: pip install openpyxl"
+        ) from exc
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         for name, (x, y) in curves.items():

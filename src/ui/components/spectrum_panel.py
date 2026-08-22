@@ -110,23 +110,28 @@ def render_simulated_spectra(
     if curves:
         st.markdown(t("results_export_all", lang))
         e1, e2, e3 = st.columns(3)
-        xlsx = spectrum_excel_bytes(
-            curves=curves,
-            peaks=peaks_df if not peaks_df.empty else None,
-            parameters={
-                "profile": profile,
-                "fwhm_ev": fwhm,
-                "fraction": fraction,
-                "compound": compound_name or "",
-            },
-        )
-        e1.download_button(
-            t("results_dl_excel", lang),
-            data=xlsx,
-            file_name="xps_spectra.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="_dl_xlsx_all",
-        )
+        try:
+            xlsx = spectrum_excel_bytes(
+                curves=curves,
+                peaks=peaks_df if not peaks_df.empty else None,
+                parameters={
+                    "profile": profile,
+                    "fwhm_ev": fwhm,
+                    "fraction": fraction,
+                    "compound": compound_name or "",
+                },
+            )
+            e1.download_button(
+                t("results_dl_excel", lang),
+                data=xlsx,
+                file_name="xps_spectra.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="_dl_xlsx_all",
+            )
+        except ImportError as exc:
+            e1.caption(str(exc))
+        except Exception as exc:
+            e1.caption(f"Excel: {exc}")
         # TIFF of first available element
         first_el = next(iter(curves))
         x0, y0 = curves[first_el]

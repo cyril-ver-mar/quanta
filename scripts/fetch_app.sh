@@ -28,9 +28,7 @@ fetch_quanta_app() {
 
   if command -v git >/dev/null 2>&1; then
     if git clone --depth 1 --branch "$tag" "https://github.com/${repo}.git" "$tmp/repo" 2>/dev/null; then
-      if [[ -f "$tmp/repo/standalone/Quanta/app.py" ]]; then
-        src="$tmp/repo/standalone/Quanta"
-      elif [[ -f "$tmp/repo/app.py" ]]; then
+      if [[ -f "$tmp/repo/app.py" ]]; then
         src="$tmp/repo"
       fi
     fi
@@ -38,18 +36,38 @@ fetch_quanta_app() {
 
   if [[ -z "$src" ]] && command -v curl >/dev/null 2>&1; then
     local zip="$tmp/src.zip"
-    if curl -fsSL "https://github.com/${repo}/archive/refs/tags/${tag}.zip" -o "$zip"; then
-      if command -v unzip >/dev/null 2>&1; then
-        unzip -q "$zip" -d "$tmp"
-        local extracted
-        extracted="$(find "$tmp" -maxdepth 1 -type d -name 'quanta-*' | head -1)"
-        if [[ -n "$extracted" ]]; then
-          if [[ -f "$extracted/standalone/Quanta/app.py" ]]; then
-            src="$extracted/standalone/Quanta"
-          elif [[ -f "$extracted/app.py" ]]; then
-            src="$extracted"
-          fi
-        fi
+    # Prefer a Release asset named *standalone*; fall back to source tag archive.
+    local asset_url=""
+    if command -v python3 >/dev/null 2>&1; then
+      asset_url="$(python3 - <<PY
+import json, urllib.request
+url = "https://api.github.com/repos/${repo}/releases/tags/${tag}"
+try:
+    with urllib.request.urlopen(url, timeout=30) as r:
+        data = json.load(r)
+    for a in data.get("assets") or []:
+        name = (a.get("name") or "").lower()
+        if name.endswith(".zip") and "standalone" in name:
+            print(a.get("browser_download_url") or "")
+            break
+except Exception:
+    pass
+PY
+)"
+    fi
+    if [[ -n "$asset_url" ]] && curl -fsSL "$asset_url" -o "$zip"; then
+      :
+    elif curl -fsSL "https://github.com/${repo}/archive/refs/tags/${tag}.zip" -o "$zip"; then
+      :
+    else
+      zip=""
+    fi
+    if [[ -n "$zip" ]] && [[ -f "$zip" ]] && command -v unzip >/dev/null 2>&1; then
+      unzip -q "$zip" -d "$tmp"
+      local extracted
+      extracted="$(find "$tmp" -maxdepth 3 -type f -name 'app.py' | head -1)"
+      if [[ -n "$extracted" ]]; then
+        src="$(dirname "$extracted")"
       fi
     fi
   fi
