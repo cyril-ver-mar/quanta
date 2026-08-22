@@ -119,13 +119,19 @@ def neutral_route(settings: DscfSettings) -> str:
 
 
 def corehole_route(settings: DscfSettings) -> str:
-    """Core-hole UKS SP.
+    """Core-hole UKS SP (cation after Guess=Alter).
 
     Use ``UPBEPBE`` (not ``uks PBEPBE``). One short ``#`` line — G09 hard-wraps
-    longer route cards mid-token (``guess`` → ``g`` / ``uess``) and QPErr.
+    longer route cards mid-token. ``SCF=XQC`` switches to quadratic convergence
+    when DIIS stalls (common for localized core holes after 128 cycles).
     """
     method = gaussian_method_unrestricted(settings.functional)
-    return f"{method}/{settings.basis} pop=full geom=checkpoint guess=(read,alter)"
+    # pop=full not needed here (energy only for BE); keep card ≤ ~70 chars.
+    # MaxCyc is the G09 abbreviation for MaxCycle.
+    return (
+        f"{method}/{settings.basis} geom=check "
+        "guess=(read,alter) SCF=(XQC,MaxCyc=512)"
+    )
 
 
 def corehole_charge_multiplicity(

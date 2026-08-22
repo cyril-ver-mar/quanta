@@ -5,6 +5,11 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.20] — 2026-08-23
+
+### Fixed
+- **Core-hole SCF convergence** — add `SCF=(XQC,MaxCyc=512)` (still one `#` line, 69 chars) so DIIS stalls switch to quadratic convergence instead of failing at 128 cycles.
+
 ## [1.0.19] — 2026-08-23
 
 ### Fixed

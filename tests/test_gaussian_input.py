@@ -135,6 +135,7 @@ def test_corehole_route_fits_one_g09_line() -> None:
     assert route.startswith("UPBEPBE/")
     assert "uks" not in route.lower()
     assert "Integral" not in route
+    assert "SCF=(XQC,MaxCyc=512)" in route
     card = route_card(route)
     assert card.startswith("# ")
     assert len(card) <= 70
