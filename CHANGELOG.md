@@ -5,6 +5,12 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.18] — 2026-08-23
+
+### Fixed
+- **Core-hole QPErr root cause** — stop wrapping long `#` routes (G09 splits mid-token); use `UPBEPBE` instead of `uks PBEPBE`; enforce a single `#` line under ~70 characters.
+- **Guess=Alter input** — replace invalid `Alter` / `swap` / `end` with G09 α/β blank-line sections (empty α, core↔HOMO on β).
+
 ## [1.0.17] — 2026-08-23
 
 ### Fixed

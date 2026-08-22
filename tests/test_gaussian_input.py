@@ -127,17 +127,19 @@ def test_checkpoint_job_omits_oldchk() -> None:
     assert "%chk=job_1_neutral.chk" in text
 
 
-def test_route_lines_under_80_for_corehole() -> None:
-    from src.core.dscf import DscfSettings, corehole_route
-    from src.core.gaussian_input import format_route_lines, write_checkpoint_job
+def test_corehole_route_fits_one_g09_line() -> None:
+    from src.core.dscf import DscfSettings, corehole_route, neutral_route
+    from src.core.gaussian_input import route_card, write_checkpoint_job
 
     route = corehole_route(DscfSettings())
-    # Short enough for one G09 line; Integral omitted on purpose.
-    assert len(route) <= 72
+    assert route.startswith("UPBEPBE/")
+    assert "uks" not in route.lower()
     assert "Integral" not in route
-    for line in format_route_lines(route):
-        assert line.startswith("#")
-        assert len(line) <= 80
+    card = route_card(route)
+    assert card.startswith("# ")
+    assert len(card) <= 70
+    assert card.count("#") == 1
+
     text = write_checkpoint_job(
         title="core",
         charge=0,
@@ -149,10 +151,11 @@ def test_route_lines_under_80_for_corehole() -> None:
         mem_mb=1500,
         alter_swap=(1, 5),
     )
-    for line in text.splitlines():
-        if line.startswith("#"):
-            assert len(line) <= 80
-    assert "guess=(read,alter)" in text
+    assert "Alter" not in text
+    assert "swap" not in text
+    # Empty alpha section, then beta pair, blank-terminated
+    assert "\n0 2\n\n\n1 5\n\n" in text.replace("\r\n", "\n")
+    assert len(route_card(neutral_route(DscfSettings()))) <= 70
 
 
 def test_write_gaussian_file_uses_crlf(tmp_path) -> None:
@@ -165,15 +168,13 @@ def test_write_gaussian_file_uses_crlf(tmp_path) -> None:
     assert b"# sp test\r\n" in raw
 
 
-def test_format_route_lines_wraps_long_route() -> None:
-    from src.core.gaussian_input import format_route_lines
+def test_route_card_rejects_overlong_line() -> None:
+    from src.core.gaussian_input import route_card
+    import pytest
 
     long_route = (
         "sp uks PBEPBE/6-31g(d) pop=full Integral=UltraFine "
         "geom=checkpoint guess=(read,alter)"
     )
-    lines = format_route_lines(long_route)
-    assert len(lines) >= 2
-    for line in lines:
-        assert line.startswith("#")
-        assert len(line) <= 80
+    with pytest.raises(ValueError, match="exceeds"):
+        route_card(long_route)

@@ -96,6 +96,12 @@ def gaussian_method(functional: str) -> str:
     return _FUNCTIONAL_G09.get(key, (functional or "PBEPBE").strip().upper())
 
 
+def gaussian_method_unrestricted(functional: str) -> str:
+    """Unrestricted DFT: ``UPBEPBE``, ``UB3LYP``, … (not a separate ``uks`` keyword)."""
+    method = gaussian_method(functional)
+    return method if method.upper().startswith("U") else f"U{method}"
+
+
 def _integral_keyword() -> str:
     # Prefer full Integral= form — bare "int=" is ambiguous in G09 (QPErr).
     return "Integral=UltraFine"
@@ -107,20 +113,19 @@ def opt_route(settings: DscfSettings) -> str:
 
 
 def neutral_route(settings: DscfSettings) -> str:
+    """Neutral SP. Omit Integral here so the ``#`` line stays under G09's ~70-char limit."""
     method = gaussian_method(settings.functional)
-    return (
-        f"sp {method}/{settings.basis} pop=full {_integral_keyword()} "
-        "geom=checkpoint guess=read"
-    )
+    return f"sp {method}/{settings.basis} pop=full geom=checkpoint guess=read"
 
 
 def corehole_route(settings: DscfSettings) -> str:
-    method = gaussian_method(settings.functional)
-    # Keep a single route line under G09's ~80-char limit (omit Integral here).
-    return (
-        f"sp uks {method}/{settings.basis} pop=full "
-        "geom=checkpoint guess=(read,alter)"
-    )
+    """Core-hole UKS SP.
+
+    Use ``UPBEPBE`` (not ``uks PBEPBE``). One short ``#`` line — G09 hard-wraps
+    longer route cards mid-token (``guess`` → ``g`` / ``uess``) and QPErr.
+    """
+    method = gaussian_method_unrestricted(settings.functional)
+    return f"{method}/{settings.basis} pop=full geom=checkpoint guess=(read,alter)"
 
 
 def list_xps_atoms(atoms: list[tuple[str, float, float, float]]) -> list[tuple[int, str]]:

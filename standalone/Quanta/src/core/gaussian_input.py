@@ -21,6 +21,9 @@ _ASCII_REPLACEMENTS = (
     ("Å", "A"),
 )
 
+# G09 Link1 reads ~70–80 chars per physical line; longer routes are split mid-token.
+_G09_ROUTE_MAX = 70
+
 
 def ascii_safe(text: str) -> str:
     """Reduce text to Latin-1/ASCII safe for Gaussian input files."""
@@ -80,31 +83,17 @@ def ensure_opt_route(route: str, *, has_connectivity: bool) -> str:
     )
 
 
-def format_route_lines(route: str, *, max_len: int = 72) -> list[str]:
-    """Split a route into ``# …`` lines under Gaussian's ~80-char input limit.
-
-    G09 silently breaks overlong route lines mid-token (e.g. ``guess`` → ``g`` /
-    ``uess``), which yields QPErr syntax errors.
-    """
-    tokens = ascii_safe(" ".join((route or "").split())).split()
-    if not tokens:
-        return ["#"]
-    lines: list[str] = []
-    current = "#"
-    for tok in tokens:
-        candidate = f"{current} {tok}" if current != "#" else f"# {tok}"
-        if len(candidate) <= max_len:
-            current = candidate
-            continue
-        if current != "#":
-            lines.append(current)
-        current = f"# {tok}"
-        if len(current) > max_len:
-            lines.append(current)
-            current = "#"
-    if current != "#":
-        lines.append(current)
-    return lines
+def route_card(route: str) -> str:
+    """One ``# …`` route card. Never wraps — G09 splits overlong lines mid-token."""
+    body = ascii_safe(" ".join((route or "").split()))
+    line = f"# {body}" if body else "#"
+    if len(line) > _G09_ROUTE_MAX:
+        raise ValueError(
+            f"Gaussian route exceeds {_G09_ROUTE_MAX} characters ({len(line)}): {line!r}. "
+            "Shorten keywords (e.g. UPBEPBE, omit Integral on this step) — "
+            "do not wrap onto multiple # lines."
+        )
+    return line
 
 
 def join_gjf_lines(lines: list[str]) -> str:
@@ -113,11 +102,7 @@ def join_gjf_lines(lines: list[str]) -> str:
 
 
 def write_gaussian_file(path: Path | str, text: str) -> None:
-    """Write a ``.gjf`` with CRLF line endings (required by G09W on Windows).
-
-    LF-only files make G09W glue a following ``#`` route line onto the previous
-    line (``…checkpoint #``), which triggers QPErr.
-    """
+    """Write a ``.gjf`` with CRLF line endings (required by G09W on Windows)."""
     p = Path(path)
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     p.write_text(normalized, encoding="ascii", errors="replace", newline="\r\n")
@@ -129,16 +114,12 @@ def write_gjf(spec: GaussianJobSpec) -> str:
         f"%chk={ascii_safe(spec.chk_name)}",
         f"%nprocshared={spec.nproc}",
         f"%mem={spec.mem_mb}MB",
+        route_card(route),
+        "",
+        ascii_safe(spec.title),
+        "",
+        f"{spec.charge} {spec.multiplicity}",
     ]
-    lines.extend(format_route_lines(route))
-    lines.extend(
-        [
-            "",
-            ascii_safe(spec.title),
-            "",
-            f"{spec.charge} {spec.multiplicity}",
-        ]
-    )
     for sym, x, y, z in spec.atoms:
         lines.append(f" {sym:<2} {x:16.8f} {y:16.8f} {z:16.8f}")
     lines.append("")
@@ -160,28 +141,33 @@ def write_checkpoint_job(
     mem_mb: int,
     alter_swap: tuple[int, int] | None = None,
 ) -> str:
-    """SP from checkpoint; optional Guess=Alter swap pair (core orbital, HOMO).
+    """SP from checkpoint; optional Guess=Alter (core orbital ↔ HOMO).
 
     G09W often rejects ``%oldchk=``. The runner copies ``oldchk`` → ``chk`` on disk
     before launch; the input only references ``%chk=``.
+
+    Guess=Alter (UHF/UKS) needs two blank-line-terminated sections: α then β.
+    XPS ΔSCF convention: empty α, swap on β (see Gaussian Guess=Alter examples).
     """
     _ = oldchk  # staged by GaussianRunner before launch
     lines: list[str] = [
         f"%chk={ascii_safe(chk)}",
         f"%nprocshared={nproc}",
         f"%mem={mem_mb}MB",
+        route_card(route),
+        "",
+        ascii_safe(title),
+        "",
+        f"{charge} {multiplicity}",
+        "",  # end molecule specification (geometry from checkpoint)
     ]
-    lines.extend(format_route_lines(route))
-    lines.extend(
-        [
-            "",
-            ascii_safe(title),
-            "",
-            f"{charge} {multiplicity}",
-            "",
-        ]
-    )
     if alter_swap is not None:
         a, b = alter_swap
-        lines.extend(["Alter", f"swap {a},{b}", "end", ""])
+        lines.extend(
+            [
+                "",  # empty alpha alteration section
+                f"{a} {b}",  # beta: swap core orbital with HOMO
+                "",
+            ]
+        )
     return join_gjf_lines(lines)
