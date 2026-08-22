@@ -64,3 +64,6 @@ else:
             if st.button(t("save", lang), key=f"save_{comp.id}"):
                 svc.update_charge_mult(int(comp.id), int(nc), int(nm))
                 st.rerun()
+            if st.button("3D review →", key=f"review_{comp.id}"):
+                st.session_state.selected_compound_id = comp.id
+                st.switch_page("pages/2_Work_Review.py")

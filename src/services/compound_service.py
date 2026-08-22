@@ -102,6 +102,9 @@ class CompoundService:
     def update_charge_mult(self, compound_id: int, charge: int, multiplicity: int) -> None:
         self.repo.update_charge_mult(compound_id, charge, multiplicity)
 
+    def load_molecule(self, compound: Compound) -> Chem.Mol:
+        return _load_mol(Path(compound.source_path))
+
     def build_gjf_text(
         self,
         compound: Compound,

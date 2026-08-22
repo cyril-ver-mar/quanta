@@ -142,6 +142,17 @@ class JobRepository:
         finally:
             conn.close()
 
+    def list_by_compound(self, compound_id: int) -> list[Job]:
+        conn = connect()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM jobs WHERE compound_id = ? ORDER BY id DESC",
+                (compound_id,),
+            ).fetchall()
+            return [self._row(r) for r in rows]
+        finally:
+            conn.close()
+
     def get(self, job_id: int) -> Job | None:
         conn = connect()
         try:

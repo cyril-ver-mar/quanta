@@ -42,10 +42,11 @@ st.markdown(
 ### Workflow
 1. **Settings** — Gaussian path, memory, XPS correction options  
 2. **Compounds** — upload mol2 / pdb / sdf (RDKit)  
-3. **Jobs** — create OPT B3LYP/6-31G(d) `pop=full` jobs  
-4. **Queue** — run one-by-one on Windows (disabled on Mac without `g09`)  
-5. **Results** — SCF/OPT plots, HOMO–LUMO, C/N/O XPS  
-6. **Archive** — export zip on Windows → import on Mac for analysis  
+3. **Work review** — 3D structure preview before calculations  
+4. **Jobs** — create OPT B3LYP/6-31G(d) `pop=full` jobs  
+5. **Queue** — run one-by-one on Windows (disabled on Mac without `g09`)  
+6. **Results** — SCF/OPT plots, HOMO–LUMO, C/N/O XPS  
+7. **Archive** — export zip on Windows → import on Mac for analysis  
 
 Reference method: Yamada & Sato, *TANSO* 2015 (see `EXample_XPS.pdf`).
 """
