@@ -173,4 +173,5 @@ echo %C_BOLD%  If the browser does not open by itself:%C_RESET%
 echo   %C_ACCENT%·%C_RESET% open http://localhost:8501
 echo   %C_ACCENT%·%C_RESET% or http://127.0.0.1:8501
 echo.
+pause
 endlocal

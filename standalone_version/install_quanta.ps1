@@ -30,6 +30,82 @@ function Get-SuggestedInstallDir {
     return (Join-Path $env:USERPROFILE "Quanta")
 }
 
+function Resolve-Download {
+    param(
+        [string]$Repo,
+        [hashtable]$Headers
+    )
+    $result = @{
+        Url = $null
+        Name = $null
+        Tag = $null
+        Source = $null
+    }
+
+    Write-Info "  [1/4] Resolve latest GitHub package..."
+    try {
+        $Rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $Headers
+        $Zips = @()
+        foreach ($Asset in $Rel.assets) {
+            if ($Asset.name -like "*.zip" -and $Asset.browser_download_url) {
+                $Zips += $Asset
+            }
+        }
+        if ($Zips.Count -gt 0) {
+            $Preferred = $null
+            foreach ($Asset in $Zips) {
+                if ($Asset.name -match "standalone") { $Preferred = $Asset; break }
+            }
+            if (-not $Preferred) {
+                foreach ($Asset in $Zips) {
+                    if ($Asset.name -match "quanta") { $Preferred = $Asset; break }
+                }
+            }
+            if (-not $Preferred) { $Preferred = $Zips[0] }
+            $result.Url = $Preferred.browser_download_url
+            $result.Name = $Preferred.name
+            $result.Tag = $Rel.tag_name
+            $result.Source = "release asset"
+            return $result
+        }
+        if ($Rel.tag_name) {
+            $result.Tag = $Rel.tag_name
+        }
+    } catch {
+        Write-Info ("  Note: releases/latest unavailable (" + $_.Exception.Message + ")")
+    }
+
+    try {
+        $Tags = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/tags?per_page=5" -Headers $Headers
+        if ($Tags -and $Tags.Count -gt 0) {
+            $tag = $Tags[0].name
+            $result.Url = "https://github.com/$Repo/archive/refs/tags/$tag.zip"
+            $result.Name = "$tag.zip"
+            $result.Tag = $tag
+            $result.Source = "source zip (tag)"
+            return $result
+        }
+    } catch {
+        Write-Info ("  Note: tags API failed (" + $_.Exception.Message + ")")
+    }
+
+    throw "Could not find a release zip or tag to download. Check https://github.com/$Repo/releases"
+}
+
+function Find-AppRoot {
+    param([string]$ExtractRoot)
+    foreach ($dir in Get-ChildItem -Path $ExtractRoot -Recurse -Directory -Filter "Quanta" -ErrorAction SilentlyContinue) {
+        if ($dir.Parent.Name -eq "standalone") {
+            if (Test-Path (Join-Path $dir.FullName "app.py")) { return $dir.FullName }
+        }
+    }
+    foreach ($app in Get-ChildItem -Path $ExtractRoot -Recurse -Filter "app.py" -ErrorAction SilentlyContinue) {
+        $ver = Join-Path $app.DirectoryName "VERSION"
+        if (Test-Path $ver) { return $app.DirectoryName }
+    }
+    return $null
+}
+
 Write-Info ""
 Write-Info "  ============================================================"
 Write-Info "    Quanta - Bootstrap (download latest from GitHub)"
@@ -89,42 +165,16 @@ $Headers = @{
     "Accept" = "application/vnd.github+json"
 }
 
-Write-Info ""
-Write-Info "  [1/4] Resolve latest GitHub Release..."
-$ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
 try {
-    $Rel = Invoke-RestMethod -Uri $ApiUrl -Headers $Headers
+    $Dl = Resolve-Download -Repo $Repo -Headers $Headers
 } catch {
     Write-Info ""
-    Write-Info "  ERROR: GitHub API failed."
-    Write-Info ("  " + $_.Exception.Message)
+    Write-Info ("  ERROR: " + $_.Exception.Message)
     exit 1
 }
 
-$Zips = @()
-foreach ($Asset in $Rel.assets) {
-    if ($Asset.name -like "*.zip" -and $Asset.browser_download_url) {
-        $Zips += $Asset
-    }
-}
-if ($Zips.Count -eq 0) {
-    Write-Info "  ERROR: No .zip on latest release."
-    exit 1
-}
-
-$Preferred = $null
-foreach ($Asset in $Zips) {
-    if ($Asset.name -match "standalone") { $Preferred = $Asset; break }
-}
-if (-not $Preferred) {
-    foreach ($Asset in $Zips) {
-        if ($Asset.name -match "quanta") { $Preferred = $Asset; break }
-    }
-}
-if (-not $Preferred) { $Preferred = $Zips[0] }
-
-Write-Info ("  OK Latest release: " + $Rel.tag_name)
-Write-Info ("  OK Asset: " + $Preferred.name)
+Write-Info ("  OK " + $Dl.Source + ": " + $Dl.Tag)
+Write-Info ("  OK File: " + $Dl.Name)
 
 $Tmp = Join-Path $env:TEMP ("quanta_boot_" + [guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $Tmp | Out-Null
@@ -136,7 +186,7 @@ $Dest = Join-Path $ScriptDir $AppDirName
 Write-Info ""
 Write-Info "  [2/4] Download package..."
 try {
-    Invoke-WebRequest -Uri $Preferred.browser_download_url -OutFile $ZipPath -Headers @{ "User-Agent" = "Quanta-bootstrap" }
+    Invoke-WebRequest -Uri $Dl.Url -OutFile $ZipPath -Headers @{ "User-Agent" = "Quanta-bootstrap" }
     Write-Info "  OK Downloaded"
 } catch {
     Write-Info ("  ERROR download: " + $_.Exception.Message)
@@ -149,19 +199,14 @@ Write-Info ("  [3/4] Unpack into " + $Dest)
 New-Item -ItemType Directory -Path $Extract | Out-Null
 Expand-Archive -Path $ZipPath -DestinationPath $Extract -Force
 
-$AppPy = $null
-Get-ChildItem -Path $Extract -Recurse -Filter "app.py" | ForEach-Object {
-    $VerCandidate = Join-Path $_.DirectoryName "VERSION"
-    if ((-not $AppPy) -and (Test-Path $VerCandidate)) { $AppPy = $_ }
-}
-if (-not $AppPy) {
+$Src = Find-AppRoot -ExtractRoot $Extract
+if (-not $Src) {
     Write-Info "  ERROR: zip has no app.py + VERSION"
     Remove-Item -Path $Tmp -Recurse -Force -ErrorAction SilentlyContinue
     exit 1
 }
-$Src = $AppPy.Directory.FullName
 
-New-Item -ItemType Directory -Path $Hold | Out-Null
+New-Item -ItemType Directory -Path $Hold -Force | Out-Null
 if (-not (Test-Path $Dest)) {
     New-Item -ItemType Directory -Path $Dest | Out-Null
 }

@@ -15,6 +15,7 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 ### Changed
 - **install.sh** / **install.bat** — clean 6-step install (Python 3.11, venv, pip, inline import check); no separate install Python scripts.
 - **run.sh** / **run.bat** — verify deps before launch.
+- **Windows bootstrap** — fallback to tag source zip when no release asset; `pause` on `.bat` so errors stay visible; prefer local `install_quanta.ps1`.
 
 ## [1.0.2] — 2026-08-22
 

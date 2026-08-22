@@ -122,6 +122,7 @@ fi
 TAG="$(grep -m1 '"tag_name"' "$JSON" | sed 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
 ZIP_URL=""
 ZIP_NAME=""
+
 while IFS= read -r line; do
   url="$(printf '%s' "$line" | sed -n 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
   name="$(printf '%s' "$line" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
@@ -143,9 +144,18 @@ while IFS= read -r line; do
 done < <(grep -E '"name"|"browser_download_url"' "$JSON" || true)
 
 if [[ -z "$ZIP_URL" ]]; then
-  fail "No .zip asset on the latest release" \
-    "Attach Quanta-standalone-*.zip to the GitHub Release" \
-    "https://github.com/${REPO}/releases"
+  TAG_FALLBACK="$(curl -sS -L -A "Quanta-bootstrap" -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/${REPO}/tags?per_page=1" | grep -m1 '"name"' | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
+  if [[ -n "$TAG_FALLBACK" ]]; then
+    TAG="$TAG_FALLBACK"
+    ZIP_URL="https://github.com/${REPO}/archive/refs/tags/${TAG}.zip"
+    ZIP_NAME="${TAG}.zip"
+    ok "No release zip — using source archive for tag ${TAG}"
+  else
+    fail "No .zip asset on the latest release" \
+      "Check https://github.com/${REPO}/releases" \
+      "Or set QUANTA_GITHUB_REPO=owner/name"
+  fi
 fi
 ok "Latest release: ${TAG:-unknown}"
 ok "Asset: ${ZIP_NAME}"
@@ -164,13 +174,22 @@ mkdir -p "$EXTRACT"
 unzip -q "$ZIP_PATH" -d "$EXTRACT"
 
 SRC=""
-while IFS= read -r -d '' app; do
-  d="$(dirname "$app")"
-  if [[ -f "$d/VERSION" ]]; then
-    SRC="$d"
+while IFS= read -r -d '' candidate; do
+  if [[ -f "$candidate/app.py" && -f "$candidate/VERSION" ]]; then
+    SRC="$candidate"
     break
   fi
-done < <(find "$EXTRACT" -name app.py -print0 2>/dev/null)
+done < <(find "$EXTRACT" -type d -path "*/standalone/Quanta" -print0 2>/dev/null)
+
+if [[ -z "$SRC" ]]; then
+  while IFS= read -r -d '' app; do
+    d="$(dirname "$app")"
+    if [[ -f "$d/VERSION" ]]; then
+      SRC="$d"
+      break
+    fi
+  done < <(find "$EXTRACT" -name app.py -print0 2>/dev/null)
+fi
 
 if [[ -z "$SRC" ]]; then
   fail "Zip does not contain app.py + VERSION"
