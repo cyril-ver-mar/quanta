@@ -19,6 +19,7 @@ from src.core.gaussian_input import (
     GaussianJobSpec,
     connectivity_from_mol,
     write_checkpoint_job,
+    write_gaussian_file,
     write_gjf,
 )
 from src.core.models import Job, JobStatus
@@ -88,7 +89,7 @@ class JobService:
             mem_mb=settings.mem_mb,
             route=opt.route,
         )
-        opt_gjf.write_text(write_gjf(spec), encoding="utf-8")
+        write_gaussian_file(opt_gjf, write_gjf(spec))
 
         src = Path(compound.source_path)
         if src.exists():
@@ -139,7 +140,7 @@ class JobService:
             mem_mb=settings.mem_mb,
         )
         path = jdir / "input" / neutral.gjf_name
-        path.write_text(text, encoding="utf-8")
+        write_gaussian_file(path, text)
         return path
 
     def write_corehole_gjf(
@@ -167,7 +168,7 @@ class JobService:
             alter_swap=(step.orbital_index, step.homo_index),
         )
         path = job_dir(job_id) / "input" / step.gjf_name
-        path.write_text(text, encoding="utf-8")
+        write_gaussian_file(path, text)
         return path
 
     def list_jobs(self) -> list[Job]:
@@ -247,7 +248,7 @@ class JobService:
                         mem_mb=settings.mem_mb,
                         route=opt.route,
                     )
-                    opt_gjf.write_text(write_gjf(spec), encoding="utf-8")
+                    write_gaussian_file(opt_gjf, write_gjf(spec))
                     job.route = opt.route
                     job.meta_json["current_gjf"] = str(opt_gjf)
             elif pending and pending.kind == StepKind.NEUTRAL_SP:

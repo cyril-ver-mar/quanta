@@ -5,6 +5,11 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.17] — 2026-08-23
+
+### Fixed
+- **Core-hole QPErr on Windows G09W** — write `.gjf` with CRLF so multi-line `#` routes are not glued (`…checkpoint #`); shorten core-hole route (omit `Integral=` there) so it fits on one line.
+
 ## [1.0.9] — 2026-08-22
 
 ### Added

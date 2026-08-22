@@ -116,8 +116,9 @@ def neutral_route(settings: DscfSettings) -> str:
 
 def corehole_route(settings: DscfSettings) -> str:
     method = gaussian_method(settings.functional)
+    # Keep a single route line under G09's ~80-char limit (omit Integral here).
     return (
-        f"sp uks {method}/{settings.basis} pop=full {_integral_keyword()} "
+        f"sp uks {method}/{settings.basis} pop=full "
         "geom=checkpoint guess=(read,alter)"
     )
 

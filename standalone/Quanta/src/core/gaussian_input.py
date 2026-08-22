@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -106,6 +107,22 @@ def format_route_lines(route: str, *, max_len: int = 72) -> list[str]:
     return lines
 
 
+def join_gjf_lines(lines: list[str]) -> str:
+    """Join input lines with LF; writers convert to CRLF for G09W."""
+    return "\n".join(lines) + "\n"
+
+
+def write_gaussian_file(path: Path | str, text: str) -> None:
+    """Write a ``.gjf`` with CRLF line endings (required by G09W on Windows).
+
+    LF-only files make G09W glue a following ``#`` route line onto the previous
+    line (``…checkpoint #``), which triggers QPErr.
+    """
+    p = Path(path)
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    p.write_text(normalized, encoding="ascii", errors="replace", newline="\r\n")
+
+
 def write_gjf(spec: GaussianJobSpec) -> str:
     route = ensure_opt_route(spec.route, has_connectivity=bool(spec.connectivity))
     lines: list[str] = [
@@ -128,7 +145,7 @@ def write_gjf(spec: GaussianJobSpec) -> str:
     if spec.connectivity:
         lines.extend(spec.connectivity)
         lines.append("")
-    return "\n".join(lines) + "\n"
+    return join_gjf_lines(lines)
 
 
 def write_checkpoint_job(
@@ -167,4 +184,4 @@ def write_checkpoint_job(
     if alter_swap is not None:
         a, b = alter_swap
         lines.extend(["Alter", f"swap {a},{b}", "end", ""])
-    return "\n".join(lines) + "\n"
+    return join_gjf_lines(lines)

@@ -27,6 +27,7 @@ from src.utils.cancel import clear_cancel_flags, hard_stop_requested, soft_cance
 from src.utils.config import AppSettings
 from src.utils.logging_setup import get_logger
 from src.utils.paths import gaussian_run_dir, job_dir
+from src.core.gaussian_input import write_gaussian_file
 
 logger = get_logger("quanta.runner")
 
@@ -327,9 +328,8 @@ class GaussianRunner:
         env["GAUSS_SCRDIR"] = str(scratch)
 
         local_gjf = cwd_path / gjf.name
-        # Gaussian on Windows is happiest with CRLF / ASCII input.
-        text = gjf.read_text(encoding="utf-8")
-        local_gjf.write_text(text, encoding="ascii", errors="replace", newline="\n")
+        # CRLF ASCII for G09W — LF-only merges multi-line routes.
+        write_gaussian_file(local_gjf, gjf.read_text(encoding="utf-8", errors="replace"))
 
         try:
             self._stage_checkpoint(job_id, step, cwd_path)

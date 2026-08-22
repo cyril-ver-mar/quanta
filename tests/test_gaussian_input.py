@@ -132,7 +132,9 @@ def test_route_lines_under_80_for_corehole() -> None:
     from src.core.gaussian_input import format_route_lines, write_checkpoint_job
 
     route = corehole_route(DscfSettings())
-    assert len(route) > 72  # would overflow a single G09 line
+    # Short enough for one G09 line; Integral omitted on purpose.
+    assert len(route) <= 72
+    assert "Integral" not in route
     for line in format_route_lines(route):
         assert line.startswith("#")
         assert len(line) <= 80
@@ -151,4 +153,27 @@ def test_route_lines_under_80_for_corehole() -> None:
         if line.startswith("#"):
             assert len(line) <= 80
     assert "guess=(read,alter)" in text
-    assert text.count("#") >= 2
+
+
+def test_write_gaussian_file_uses_crlf(tmp_path) -> None:
+    from src.core.gaussian_input import write_gaussian_file
+
+    path = tmp_path / "job.gjf"
+    write_gaussian_file(path, "# sp test\n\n")
+    raw = path.read_bytes()
+    assert b"\r\n" in raw
+    assert b"# sp test\r\n" in raw
+
+
+def test_format_route_lines_wraps_long_route() -> None:
+    from src.core.gaussian_input import format_route_lines
+
+    long_route = (
+        "sp uks PBEPBE/6-31g(d) pop=full Integral=UltraFine "
+        "geom=checkpoint guess=(read,alter)"
+    )
+    lines = format_route_lines(long_route)
+    assert len(lines) >= 2
+    for line in lines:
+        assert line.startswith("#")
+        assert len(line) <= 80
