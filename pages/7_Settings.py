@@ -26,24 +26,25 @@ st.title(t("nav_settings", lang))
 st.caption(version_label())
 
 st.subheader(t("settings_gaussian", lang))
-settings.gaussian_exe = st.text_input("Gaussian executable path", value=settings.gaussian_exe)
-settings.work_dir = st.text_input("Work directory (optional)", value=settings.work_dir)
-settings.scratch_dir = st.text_input("Scratch / GAUSS_SCRDIR (optional)", value=settings.scratch_dir)
+settings.gaussian_exe = st.text_input(t("settings_gaussian_exe", lang), value=settings.gaussian_exe)
+st.caption(t("settings_gaussian_cli_hint", lang))
+settings.work_dir = st.text_input(t("settings_work_dir", lang), value=settings.work_dir)
+settings.scratch_dir = st.text_input(t("settings_scratch_dir", lang), value=settings.scratch_dir)
 c1, c2 = st.columns(2)
-settings.nproc = int(c1.number_input("%nprocshared", min_value=1, max_value=64, value=settings.nproc))
-settings.mem_mb = int(c2.number_input("%mem MB", min_value=500, max_value=256000, value=settings.mem_mb, step=100))
+settings.nproc = int(c1.number_input(t("settings_nproc", lang), min_value=1, max_value=64, value=settings.nproc))
+settings.mem_mb = int(c2.number_input(t("settings_mem", lang), min_value=500, max_value=256000, value=settings.mem_mb, step=100))
 
 st.subheader(t("settings_dscf", lang))
 st.caption(t("settings_dscf_hint", lang))
 c1, c2 = st.columns(2)
 settings.dscf_functional = c1.selectbox(
-    "Functional",
+    t("settings_functional", lang),
     options=["pbe", "b3lyp"],
     index=0 if settings.dscf_functional == "pbe" else 1,
 )
-settings.dscf_basis = c2.text_input("Basis set", value=settings.dscf_basis)
-settings.xps_fwhm_ev = float(st.number_input("Voigt FWHM (eV)", value=float(settings.xps_fwhm_ev)))
-settings.xps_c1s_ref_ev = float(st.number_input("C1s reference (eV)", value=float(settings.xps_c1s_ref_ev)))
+settings.dscf_basis = c2.text_input(t("settings_basis", lang), value=settings.dscf_basis)
+settings.xps_fwhm_ev = float(st.number_input(t("settings_fwhm", lang), value=float(settings.xps_fwhm_ev)))
+settings.xps_c1s_ref_ev = float(st.number_input(t("settings_c1s_ref", lang), value=float(settings.xps_c1s_ref_ev)))
 settings.dscf_apply_c1s_shift = st.checkbox(
     t("settings_c1s_shift", lang),
     value=settings.dscf_apply_c1s_shift,

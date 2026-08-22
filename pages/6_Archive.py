@@ -30,31 +30,26 @@ if get_project() is None:
     st.info(t("need_project", lang))
     st.stop()
 
-st.markdown(
-    """
-Export a zip on the **Windows** machine after calculations, copy it here, then **Import** on **Mac**
-to analyze without Gaussian.
-"""
-)
+st.markdown(t("archive_help_md", lang))
 
 svc = ArchiveService()
 jobs = JobService().list_jobs_for_compounds(project_compound_ids())
 ids = [j.id for j in jobs if j.id is not None]
-selected = st.multiselect("Jobs to export (empty = all on disk)", options=ids, default=ids[:5])
+selected = st.multiselect(t("archive_jobs_select", lang), options=ids, default=ids[:5])
 
-if st.button("Export zip"):
+if st.button(t("archive_export", lang)):
     path = svc.export_jobs(selected or None)
-    st.success(f"Wrote {path}")
-    st.download_button("Download archive", path.read_bytes(), file_name=path.name)
+    st.success(t("archive_wrote", lang, path=path))
+    st.download_button(t("archive_download", lang), path.read_bytes(), file_name=path.name)
 
-uploaded = st.file_uploader("Import archive zip", type=["zip"])
-if uploaded and st.button("Import"):
+uploaded = st.file_uploader(t("archive_upload", lang), type=["zip"])
+if uploaded and st.button(t("import_btn", lang)):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
         tmp.write(uploaded.getbuffer())
         tmp_path = Path(tmp.name)
     try:
         imported = svc.import_archive(tmp_path)
-        st.success(f"Imported jobs: {imported}")
+        st.success(t("archive_imported", lang, imported=imported))
     except Exception as exc:
         st.error(str(exc))
     finally:

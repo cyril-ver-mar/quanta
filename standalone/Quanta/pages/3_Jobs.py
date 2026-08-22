@@ -69,8 +69,13 @@ else:
         )
     )
     st.caption(
-        f"Step 1 route: `{opt_route(dscf)}` · "
-        f"nproc={settings.nproc} · mem={settings.mem_mb} MB"
+        t(
+            "workflow_route_caption",
+            lang,
+            route=opt_route(dscf),
+            nproc=settings.nproc,
+            mem=settings.mem_mb,
+        )
     )
 
     if st.button(t("workflow_create_btn", lang), type="primary"):

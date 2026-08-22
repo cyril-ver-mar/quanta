@@ -46,58 +46,58 @@ if c1.button(t("queue_run_next", lang), disabled=not can_run):
     with st.spinner(t("queue_running", lang)):
         jid = GaussianRunner().run_next(settings)
     if jid:
-        st.success(f"Finished processing job {jid}")
+        st.success(t("queue_finished", lang, job_id=jid))
     else:
-        st.info("No queued job or Gaussian unavailable")
-if c2.button("Pause remaining queue"):
+        st.info(t("queue_nothing", lang))
+if c2.button(t("queue_pause", lang)):
     svc.pause_queue()
     st.rerun()
-if c3.button("Resume paused"):
+if c3.button(t("queue_resume", lang)):
     svc.resume_queue()
     st.rerun()
 
 jobs = svc.list_jobs_for_compounds(pids)
 if not jobs:
-    st.info("No jobs.")
+    st.info(t("workflow_no_jobs", lang))
 else:
     df = pd.DataFrame(
         [
             {
-                "id": j.id,
-                "name": j.name,
-                "status": j.status.value,
-                "current_step": (j.meta_json or {}).get("current_step"),
-                "progress": f"{j.progress:.0%}",
-                "eta_s": (j.meta_json or {}).get("eta_s"),
-                "error": j.error,
+                t("col_id", lang): j.id,
+                t("col_name", lang): j.name,
+                t("col_status", lang): j.status.value,
+                t("col_current_step", lang): (j.meta_json or {}).get("current_step"),
+                t("col_progress", lang): f"{j.progress:.0%}",
+                t("col_eta", lang): (j.meta_json or {}).get("eta_s"),
+                t("col_error", lang): j.error,
             }
             for j in jobs
         ]
     )
     st.dataframe(df, use_container_width=True)
 
-    selected = st.number_input("Job id", min_value=1, step=1, value=int(jobs[0].id or 1))
+    selected = st.number_input(t("job_id", lang), min_value=1, step=1, value=int(jobs[0].id or 1))
     steps = svc.get_steps(int(selected))
     if steps:
         st.subheader(t("workflow_title", lang))
         render_workflow_steps(steps, lang=lang, expanded=True)
 
     a1, a2, a3 = st.columns(3)
-    if a1.button("Delete pending"):
+    if a1.button(t("queue_delete_pending", lang)):
         try:
             svc.delete_pending(int(selected))
-            st.success("Deleted")
+            st.success(t("queue_deleted", lang))
             st.rerun()
         except Exception as exc:
             st.error(str(exc))
-    if a2.button("Re-queue / restart"):
+    if a2.button(t("queue_restart", lang)):
         try:
             svc.restart_failed(int(selected))
-            st.success("Re-queued")
+            st.success(t("queue_requeued", lang))
             st.rerun()
         except Exception as exc:
             st.error(str(exc))
-    if a3.button("Refresh monitor"):
+    if a3.button(t("queue_refresh", lang)):
         st.rerun()
 
     jdir = job_dir(int(selected))
@@ -113,10 +113,10 @@ else:
         st.caption(str(log_path.name))
         st.write(
             {
-                "opt_steps": parsed.opt_steps,
-                "progress": parsed.progress_estimate,
-                "scf_points": len(parsed.scf_energies_ha),
-                "normal_termination": parsed.normal_termination,
+                t("monitor_opt_steps", lang): parsed.opt_steps,
+                t("monitor_progress", lang): parsed.progress_estimate,
+                t("monitor_scf_points", lang): len(parsed.scf_energies_ha),
+                t("monitor_normal_term", lang): parsed.normal_termination,
             }
         )
         if parsed.scf_energies_ha:

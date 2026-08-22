@@ -102,11 +102,14 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "queue_running": "Running Gaussian steps…",
         "queue_live_log": "Live / last step log",
         "update_available": "**{new}** is available (you have {old}).",
+        "update_dialog_title": "Update available",
+        "update_yes_install": "Upgrade now",
+        "update_later": "Later",
         "update_open_release": "Open release on GitHub",
         "update_install_expander": "Download & install update",
         "update_install_help": (
-            "Replaces app files from the release zip. Keeps your data/, exports/, and venv/. "
-            "Restart the app afterward; re-run install if dependencies changed."
+            "Quanta will download the release zip and replace app files. "
+            "Your data/, exports/, venv/, and SECRETS are kept. Restart the app afterward."
         ),
         "update_confirm": "I understand app files will be overwritten (data/ and venv/ kept).",
         "update_download_install": "Download & install now",
@@ -115,9 +118,13 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "update_restart_hint": "Close the terminal or stop Streamlit, then run again.",
         "update_failed": "Update failed: {err}",
         "update_no_zip": (
-            "This release has no standalone .zip asset — open the release page and download manually."
+            "This release has no downloadable zip — open the release page and download manually."
         ),
         "update_dismiss": "Dismiss",
+        "settings_gaussian_cli_hint": (
+            "Use the CLI binary (g09.exe or g16.exe), not the Windows GUI (g09w.exe). "
+            "The GUI only opens an empty window and will not run jobs from Quanta."
+        ),
         "update_section": "Updates",
         "update_not_configured": (
             "GitHub repo not set. Put `owner/name` in the `GITHUB_REPO` file "
@@ -178,6 +185,123 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "project_active_entry": "Active compound: **{label}** (`{id}`)",
         "project_n_compounds": "Compounds in project",
         "project_n_jobs": "Jobs in project",
+        "soft_cancel_ok": "Soft cancel requested",
+        "hard_stop_ok": "Hard stop requested",
+        "project_loaded": "Project loaded.",
+        "project_default_name": "My ΔSCF project",
+        "project_entry_jobs": "{label} ({formula}) · {n} job(s)",
+        "compound_name": "Name",
+        "import_btn": "Import",
+        "compound_imported": "Imported compound id={id}",
+        "compound_library": "Library",
+        "compound_empty": "No compounds yet.",
+        "compound_goto_review": "3D review →",
+        "atoms": "Atoms",
+        "formula": "Formula",
+        "field_format": "Format",
+        "path_label": "Path",
+        "meta_label": "Meta",
+        "review_caption": "Inspect 3D geometry, charge/multiplicity, and linked jobs before queuing Gaussian.",
+        "review_style_ballstick": "ball+stick",
+        "review_elements": "Elements: {list}",
+        "review_3d": "3D model",
+        "review_no_jobs": "No jobs yet for this compound. Create one on the Jobs page.",
+        "review_create_job": "Create job for this compound",
+        "review_job_queued": "Queued job id={id}",
+        "workflow_route_caption": "Step 1 route: `{route}` · nproc={nproc} · mem={mem} MB",
+        "workflow_io_caption": "Input: `{gjf}` · Log: `{log}`",
+        "workflow_alter_caption": "Alter swap: orbital {orbital} (1s) ↔ {homo} (HOMO)",
+        "step_opt_title": "Step 1 · Geometry optimization",
+        "step_opt_hint": (
+            "Optimizes 3D geometry in the gas phase. "
+            "Uses your charge and multiplicity from Compounds. "
+            "Produces a checkpoint for all later single-points."
+        ),
+        "step_neutral_title": "Step 2 · Neutral ground-state SP",
+        "step_neutral_hint": (
+            "Single-point at the OPT geometry with pop=full. "
+            "Records E₀ and maps each atom's 1s orbital for core-hole jobs. "
+            "Requires Step 1 checkpoint."
+        ),
+        "step_corehole_title": "Step {n} · Core hole on {label}",
+        "step_corehole_hint": (
+            "UKS single-point with a 1s core hole on atom {atom} ({element}). "
+            "Guess=Alter swaps that atom's 1s with HOMO (doublet). "
+            "BE = E(core hole) − E₀. Requires Step 2."
+        ),
+        "queue_pause": "Pause remaining queue",
+        "queue_resume": "Resume paused",
+        "queue_finished": "Finished processing job {job_id}",
+        "queue_nothing": "No queued job or Gaussian unavailable",
+        "queue_delete_pending": "Delete pending",
+        "queue_deleted": "Deleted",
+        "queue_restart": "Re-queue / restart",
+        "queue_requeued": "Re-queued",
+        "queue_refresh": "Refresh monitor",
+        "job_id": "Job id",
+        "col_id": "id",
+        "col_name": "name",
+        "col_status": "status",
+        "col_progress": "progress",
+        "col_route": "route",
+        "col_current_step": "current_step",
+        "col_eta": "eta_s",
+        "col_error": "error",
+        "monitor_opt_steps": "opt_steps",
+        "monitor_progress": "progress",
+        "monitor_scf_points": "scf_points",
+        "monitor_normal_term": "normal_termination",
+        "results_job_select": "Job",
+        "results_e0": "E₀ (Ha)",
+        "results_homo": "HOMO (eV)",
+        "results_lumo": "LUMO (eV)",
+        "results_gap": "Gap (eV)",
+        "results_n_corehole": "Core-hole jobs",
+        "results_dl_core_csv": "core_levels.csv",
+        "results_spectrum_title": "{element}1s (ΔSCF + Voigt)",
+        "results_be_axis": "Binding energy (eV)",
+        "results_intensity_axis": "Intensity (a.u.)",
+        "archive_help_md": """
+Export a zip on the **Windows** machine after calculations, copy it here, then **Import** on **Mac**
+to analyze without Gaussian.
+""",
+        "archive_jobs_select": "Jobs to export (empty = all on disk)",
+        "archive_export": "Export zip",
+        "archive_wrote": "Wrote {path}",
+        "archive_download": "Download archive",
+        "archive_upload": "Import archive zip",
+        "archive_imported": "Imported jobs: {imported}",
+        "settings_gaussian_exe": "Gaussian executable path",
+        "settings_work_dir": "Work directory (optional)",
+        "settings_scratch_dir": "Scratch / GAUSS_SCRDIR (optional)",
+        "settings_nproc": "%nprocshared",
+        "settings_mem": "%mem MB",
+        "settings_functional": "Functional",
+        "settings_basis": "Basis set",
+        "settings_fwhm": "Voigt FWHM (eV)",
+        "settings_c1s_ref": "C1s reference (eV)",
+        "home_workflow_md": """
+### Workflow (ΔSCF XPS)
+0. **Project** — create/load a workspace; compounds & jobs belong to one project  
+1. **Settings** — Gaussian path, PBE/B3LYP, Voigt FWHM, C1s reference  
+2. **Compounds** — upload mol2 / pdb / sdf (RDKit) into the active project  
+3. **Work review** — 3D structure preview before calculations  
+4. **Jobs** — create a multi-step ΔSCF workflow (see step guide)  
+5. **Queue** — run steps one-by-one on Windows (disabled on Mac without `g09`)  
+6. **Results** — ΔSCF binding energies and C/N/O spectra  
+7. **Archive** — export zip on Windows → import on Mac for analysis  
+
+**Method:** gas-phase ΔSCF in Gaussian 09 — OPT → neutral SP (E₀) → core-hole SP per atom (BE = ΔE).
+""",
+        "update_repo_file_exists": "`{path}` — exists: **{exists}**",
+        "update_repo_parse_fail": (
+            "GITHUB_REPO was found but no valid `owner/name` line was parsed. "
+            "Use one line like `cyril-ver-mar/quanta` (comments with `#` are OK on other lines)."
+        ),
+        "update_repo_create_hint": (
+            "Create `{name}` in the app folder (next to `app.py`) "
+            "with one line: `cyril-ver-mar/quanta`"
+        ),
     },
     "ru": {
         "app_title": "Quanta",
@@ -278,11 +402,14 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "queue_running": "Идёт расчёт Gaussian…",
         "queue_live_log": "Текущий / последний log",
         "update_available": "Доступна версия **{new}** (у вас {old}).",
+        "update_dialog_title": "Доступно обновление",
+        "update_yes_install": "Обновить сейчас",
+        "update_later": "Позже",
         "update_open_release": "Открыть релиз на GitHub",
         "update_install_expander": "Скачать и установить обновление",
         "update_install_help": (
-            "Заменяет файлы приложения из zip-релиза. Сохраняет data/, exports/ и venv/. "
-            "После этого перезапустите приложение; при смене зависимостей снова запустите install."
+            "Quanta скачает zip релиза и заменит файлы приложения. "
+            "Каталоги data/, exports/, venv/ и файл SECRETS сохраняются. Затем перезапустите приложение."
         ),
         "update_confirm": "Понимаю: файлы приложения будут перезаписаны (data/ и venv/ сохранятся).",
         "update_download_install": "Скачать и установить сейчас",
@@ -291,9 +418,13 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "update_restart_hint": "Закройте терминал или остановите Streamlit, затем запустите снова.",
         "update_failed": "Ошибка обновления: {err}",
         "update_no_zip": (
-            "У этого релиза нет standalone .zip — откройте страницу релиза и скачайте вручную."
+            "У этого релиза нет скачиваемого zip — откройте страницу релиза и скачайте вручную."
         ),
         "update_dismiss": "Скрыть",
+        "settings_gaussian_cli_hint": (
+            "Укажите CLI-файл (g09.exe или g16.exe), а не Windows GUI (g09w.exe). "
+            "GUI только открывает пустое окно и не запускает задания из Quanta."
+        ),
         "update_section": "Обновления",
         "update_not_configured": (
             "Репозиторий GitHub не задан. Укажите `owner/name` в файле `GITHUB_REPO` "
@@ -354,6 +485,123 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "project_active_entry": "Активное соединение: **{label}** (`{id}`)",
         "project_n_compounds": "Соединений в проекте",
         "project_n_jobs": "Задач в проекте",
+        "soft_cancel_ok": "Мягкая отмена запрошена",
+        "hard_stop_ok": "Жёсткая остановка запрошена",
+        "project_loaded": "Проект загружен.",
+        "project_default_name": "Мой проект ΔSCF",
+        "project_entry_jobs": "{label} ({formula}) · {n} задач(и)",
+        "compound_name": "Имя",
+        "import_btn": "Импорт",
+        "compound_imported": "Импортировано соединение id={id}",
+        "compound_library": "Библиотека",
+        "compound_empty": "Соединений пока нет.",
+        "compound_goto_review": "3D обзор →",
+        "atoms": "Атомы",
+        "formula": "Формула",
+        "field_format": "Формат",
+        "path_label": "Путь",
+        "meta_label": "Мета",
+        "review_caption": "Проверьте 3D-геометрию, заряд/мультиплетность и связанные задачи перед постановкой в очередь Gaussian.",
+        "review_style_ballstick": "шарики+стержни",
+        "review_elements": "Элементы: {list}",
+        "review_3d": "3D-модель",
+        "review_no_jobs": "Для этого соединения ещё нет задач. Создайте на странице Jobs.",
+        "review_create_job": "Создать задачу для этого соединения",
+        "review_job_queued": "В очередь поставлена задача id={id}",
+        "workflow_route_caption": "Маршрут шага 1: `{route}` · nproc={nproc} · mem={mem} MB",
+        "workflow_io_caption": "Вход: `{gjf}` · Log: `{log}`",
+        "workflow_alter_caption": "Alter: орбиталь {orbital} (1s) ↔ {homo} (HOMO)",
+        "step_opt_title": "Шаг 1 · Оптимизация геометрии",
+        "step_opt_hint": (
+            "Оптимизирует 3D-геометрию в газовой фазе. "
+            "Использует заряд и мультиплетность со страницы Соединения. "
+            "Создаёт checkpoint для последующих single-point."
+        ),
+        "step_neutral_title": "Шаг 2 · Нейтральный SP основного состояния",
+        "step_neutral_hint": (
+            "Single-point на геометрии OPT с pop=full. "
+            "Записывает E₀ и сопоставляет 1s-орбитали атомам для core-hole. "
+            "Нужен checkpoint шага 1."
+        ),
+        "step_corehole_title": "Шаг {n} · Core hole на {label}",
+        "step_corehole_hint": (
+            "UKS single-point с дыркой в 1s на атоме {atom} ({element}). "
+            "Guess=Alter меняет 1s этого атома с HOMO (дублет). "
+            "BE = E(core hole) − E₀. Нужен шаг 2."
+        ),
+        "queue_pause": "Приостановить очередь",
+        "queue_resume": "Возобновить паузу",
+        "queue_finished": "Обработка задачи {job_id} завершена",
+        "queue_nothing": "Нет задачи в очереди или Gaussian недоступен",
+        "queue_delete_pending": "Удалить ожидающую",
+        "queue_deleted": "Удалено",
+        "queue_restart": "Снова в очередь / перезапуск",
+        "queue_requeued": "Снова в очереди",
+        "queue_refresh": "Обновить монитор",
+        "job_id": "ID задачи",
+        "col_id": "id",
+        "col_name": "имя",
+        "col_status": "статус",
+        "col_progress": "прогресс",
+        "col_route": "маршрут",
+        "col_current_step": "текущий_шаг",
+        "col_eta": "eta_с",
+        "col_error": "ошибка",
+        "monitor_opt_steps": "шаги_opt",
+        "monitor_progress": "прогресс",
+        "monitor_scf_points": "точки_scf",
+        "monitor_normal_term": "нормальное_завершение",
+        "results_job_select": "Задача",
+        "results_e0": "E₀ (Ha)",
+        "results_homo": "HOMO (эВ)",
+        "results_lumo": "LUMO (эВ)",
+        "results_gap": "Щель (эВ)",
+        "results_n_corehole": "Core-hole задачи",
+        "results_dl_core_csv": "core_levels.csv",
+        "results_spectrum_title": "{element}1s (ΔSCF + Voigt)",
+        "results_be_axis": "Энергия связи (эВ)",
+        "results_intensity_axis": "Интенсивность (отн. ед.)",
+        "archive_help_md": """
+Экспортируйте zip на машине **Windows** после расчётов, скопируйте сюда и **импортируйте** на **Mac**,
+чтобы анализировать без Gaussian.
+""",
+        "archive_jobs_select": "Задачи для экспорта (пусто = все на диске)",
+        "archive_export": "Экспорт zip",
+        "archive_wrote": "Записано: {path}",
+        "archive_download": "Скачать архив",
+        "archive_upload": "Импорт архива zip",
+        "archive_imported": "Импортированы задачи: {imported}",
+        "settings_gaussian_exe": "Путь к исполняемому файлу Gaussian",
+        "settings_work_dir": "Рабочий каталог (необяз.)",
+        "settings_scratch_dir": "Scratch / GAUSS_SCRDIR (необяз.)",
+        "settings_nproc": "%nprocshared",
+        "settings_mem": "%mem MB",
+        "settings_functional": "Функционал",
+        "settings_basis": "Базисный набор",
+        "settings_fwhm": "Voigt FWHM (эВ)",
+        "settings_c1s_ref": "Референс C1s (эВ)",
+        "home_workflow_md": """
+### Workflow (ΔSCF XPS)
+0. **Проект** — создать/загрузить рабочее пространство; соединения и задачи принадлежат одному проекту  
+1. **Настройки** — путь Gaussian, PBE/B3LYP, Voigt FWHM, референс C1s  
+2. **Соединения** — загрузка mol2 / pdb / sdf (RDKit) в активный проект  
+3. **Обзор структуры** — 3D-просмотр перед расчётами  
+4. **Задачи** — создать многошаговый ΔSCF workflow (см. описание шагов)  
+5. **Очередь** — запуск шагов по одному на Windows (на Mac без `g09` отключён)  
+6. **Результаты** — энергии связи ΔSCF и спектры C/N/O  
+7. **Архив** — экспорт zip на Windows → импорт на Mac для анализа  
+
+**Метод:** gas-phase ΔSCF в Gaussian 09 — OPT → нейтральный SP (E₀) → core-hole SP на атом (BE = ΔE).
+""",
+        "update_repo_file_exists": "`{path}` — существует: **{exists}**",
+        "update_repo_parse_fail": (
+            "Файл GITHUB_REPO найден, но строка `owner/name` не разобрана. "
+            "Укажите одну строку вида `cyril-ver-mar/quanta` (комментарии с `#` на других строках допустимы)."
+        ),
+        "update_repo_create_hint": (
+            "Создайте `{name}` в папке приложения (рядом с `app.py`) "
+            "с одной строкой: `cyril-ver-mar/quanta`"
+        ),
     },
 }
 

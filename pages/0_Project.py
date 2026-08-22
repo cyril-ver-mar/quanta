@@ -35,7 +35,7 @@ st.subheader(t("project_section", lang))
 rows = project_service.list_projects()
 c1, c2 = st.columns(2)
 with c1:
-    new_name = st.text_input(t("new_project_name", lang), value="My ΔSCF project")
+    new_name = st.text_input(t("new_project_name", lang), value=t("project_default_name", lang))
     if st.button(t("create_project", lang), type="primary"):
         proj = project_service.create_project(new_name)
         set_project(proj)
@@ -142,14 +142,22 @@ else:
         n_jobs = len(job_svc.list_jobs_for_compounds([entry.compound_id]))
         label = entry.label or (comp.name if comp else f"#{entry.compound_id}")
         formula = comp.formula if comp else "—"
-        with st.expander(f"{label} ({formula}) · {n_jobs} job(s)"):
+        with st.expander(
+            t(
+                "project_entry_jobs",
+                lang,
+                label=label,
+                formula=formula,
+                n=n_jobs,
+            )
+        ):
             st.write(t("project_entry_id", lang, id=entry.id, compound_id=entry.compound_id))
             if comp:
                 st.write(
                     {
-                        "charge": comp.charge,
-                        "multiplicity": comp.multiplicity,
-                        "atoms": comp.n_atoms,
+                        t("charge", lang): comp.charge,
+                        t("multiplicity", lang): comp.multiplicity,
+                        t("atoms", lang): comp.n_atoms,
                     }
                 )
             if st.button(t("project_set_active", lang), key=f"active_{entry.id}"):

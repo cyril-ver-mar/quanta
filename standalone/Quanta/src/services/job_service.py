@@ -13,7 +13,12 @@ from src.core.dscf import (
     opt_route,
     serialize_steps,
 )
-from src.core.gaussian_input import GaussianJobSpec, write_checkpoint_job, write_gjf
+from src.core.gaussian_input import (
+    GaussianJobSpec,
+    connectivity_from_mol,
+    write_checkpoint_job,
+    write_gjf,
+)
 from src.core.models import Job, JobStatus
 from src.db.repositories import JobRepository
 from src.services.compound_service import CompoundService, mol_to_atoms
@@ -61,11 +66,13 @@ class JobService:
         steps = build_workflow_steps(atoms, dscf, job_id)
         opt = steps[0]
         opt_gjf = jdir / "input" / opt.gjf_name
+        connectivity = connectivity_from_mol(mol) if mol.GetNumBonds() > 0 else None
         spec = GaussianJobSpec(
             title=f"{compound.name} · ΔSCF step 1 OPT",
             charge=compound.charge,
             multiplicity=compound.multiplicity,
             atoms=atoms,
+            connectivity=connectivity,
             chk_name=f"job_{job_id}_opt.chk",
             nproc=settings.nproc,
             mem_mb=settings.mem_mb,

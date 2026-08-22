@@ -82,3 +82,10 @@ NO_CHARGES
     assert steps[0].kind == StepKind.OPT
     assert any(s.kind == StepKind.NEUTRAL_SP for s in steps)
     assert len(steps) >= 2
+
+    from src.utils.paths import job_dir
+
+    gjf = job_dir(jid) / "input" / steps[0].gjf_name
+    text = gjf.read_text(encoding="utf-8")
+    assert "geom=connectivity" in text
+    assert any(line.startswith("1 ") and "2 " in line for line in text.splitlines())

@@ -19,6 +19,7 @@ from src.utils.github_updates import (
     ERR_UNEXPECTED,
     UpdateStatus,
     check_for_update,
+    clear_update_cache,
     resolve_github_repo,
 )
 from src.utils.i18n import t
@@ -57,14 +58,14 @@ def _status_error_text(status: UpdateStatus, lang: str) -> str | None:
     )
 
 
-def _ensure_checked(*, force: bool = False) -> UpdateStatus:
+def _ensure_checked(*, force: bool = False, use_cache: bool = True) -> UpdateStatus:
     """Run network check once per Streamlit session (every app launch)."""
     if not force:
         cached = st.session_state.get(_SESSION_STATUS)
         if isinstance(cached, UpdateStatus):
             return cached
     try:
-        status = check_for_update(local_version=get_version())
+        status = check_for_update(local_version=get_version(), use_cache=use_cache and not force)
     except Exception as exc:  # noqa: BLE001 — never block UI on updater
         logger.exception("Update check failed")
         status = UpdateStatus(
@@ -80,8 +81,19 @@ def _ensure_checked(*, force: bool = False) -> UpdateStatus:
     return status
 
 
+def _apply_update(zip_url: str) -> None:
+    download_and_apply(zip_url)
+    get_version.cache_clear()
+    st.session_state[_SESSION_DONE] = True
+    st.session_state.pop(_SESSION_ERROR, None)
+    clear_update_cache()
+    st.session_state[_SESSION_STATUS] = check_for_update(
+        local_version=get_version(), use_cache=False
+    )
+
+
 def render_update_banner(lang: str) -> None:
-    """Show update info or a typed check-failure warning (dismissible)."""
+    """On open: ask to upgrade and install in-app (no manual GitHub download)."""
     status = _ensure_checked()
     if st.session_state.get(_SESSION_DISMISSED):
         return
@@ -99,48 +111,79 @@ def render_update_banner(lang: str) -> None:
         return
 
     latest = status.latest
-    st.sidebar.info(
-        t("update_available", lang, new=latest.version, old=status.local_version)
-    )
-    st.sidebar.markdown(f"[{t('update_open_release', lang)}]({latest.html_url})")
 
-    err = st.session_state.get(_SESSION_ERROR)
-    if err:
-        st.sidebar.error(t("update_failed", lang, err=err))
-    if st.session_state.get(_SESSION_DONE):
-        st.sidebar.success(t("update_installed", lang))
-        st.sidebar.caption(t("update_restart_hint", lang))
+    @st.dialog(t("update_dialog_title", lang))
+    def _upgrade_dialog() -> None:
+        st.markdown(
+            t("update_available", lang, new=latest.version, old=status.local_version)
+        )
+        st.caption(t("update_install_help", lang))
 
-    if latest.zip_url:
-        with st.sidebar.expander(t("update_install_expander", lang), expanded=False):
-            st.caption(t("update_install_help", lang))
-            confirm = st.checkbox(
-                t("update_confirm", lang),
-                key="_update_confirm_cb",
-            )
-            if st.button(
-                t("update_download_install", lang),
-                key="_update_install_btn",
-                disabled=not confirm,
+        err = st.session_state.get(_SESSION_ERROR)
+        if err:
+            st.error(t("update_failed", lang, err=err))
+        if st.session_state.get(_SESSION_DONE):
+            st.success(t("update_installed", lang))
+            st.caption(t("update_restart_hint", lang))
+            if st.button(t("update_dismiss", lang), key="_upd_dlg_done"):
+                st.session_state[_SESSION_DISMISSED] = True
+                st.rerun()
+            return
+
+        if latest.zip_url:
+            c1, c2 = st.columns(2)
+            if c1.button(
+                t("update_yes_install", lang),
+                type="primary",
+                use_container_width=True,
+                key="_upd_dlg_yes",
             ):
                 try:
                     with st.spinner(t("update_working", lang)):
-                        download_and_apply(latest.zip_url)
-                    get_version.cache_clear()
-                    st.session_state[_SESSION_DONE] = True
-                    st.session_state.pop(_SESSION_ERROR, None)
-                    st.session_state[_SESSION_STATUS] = check_for_update(
-                        local_version=get_version()
-                    )
+                        _apply_update(latest.zip_url)
                     st.rerun()
                 except Exception as exc:
                     logger.exception("Update install failed")
                     st.session_state[_SESSION_ERROR] = str(exc)
                     st.rerun()
-    else:
-        st.sidebar.caption(t("update_no_zip", lang))
+            if c2.button(
+                t("update_later", lang),
+                use_container_width=True,
+                key="_upd_dlg_later",
+            ):
+                st.session_state[_SESSION_DISMISSED] = True
+                st.rerun()
+        else:
+            st.warning(t("update_no_zip", lang))
+            st.markdown(f"[{t('update_open_release', lang)}]({latest.html_url})")
+            if st.button(t("update_dismiss", lang), key="_upd_dlg_nozip"):
+                st.session_state[_SESSION_DISMISSED] = True
+                st.rerun()
 
-    if st.sidebar.button(t("update_dismiss", lang), key="_update_dismiss_btn2"):
+    # Open modal once per session until the user upgrades or chooses Later.
+    _upgrade_dialog()
+
+    # Compact sidebar reminder (install without leaving the app).
+    st.sidebar.info(
+        t("update_available", lang, new=latest.version, old=status.local_version)
+    )
+    if st.session_state.get(_SESSION_DONE):
+        st.sidebar.success(t("update_installed", lang))
+        st.sidebar.caption(t("update_restart_hint", lang))
+    err = st.session_state.get(_SESSION_ERROR)
+    if err:
+        st.sidebar.error(t("update_failed", lang, err=err))
+    if latest.zip_url and not st.session_state.get(_SESSION_DONE):
+        if st.sidebar.button(t("update_yes_install", lang), key="_update_sidebar_install"):
+            try:
+                with st.spinner(t("update_working", lang)):
+                    _apply_update(latest.zip_url)
+                st.rerun()
+            except Exception as exc:
+                logger.exception("Update install failed")
+                st.session_state[_SESSION_ERROR] = str(exc)
+                st.rerun()
+    if st.sidebar.button(t("update_later", lang), key="_update_dismiss_btn2"):
         st.session_state[_SESSION_DISMISSED] = True
         st.rerun()
 
@@ -148,21 +191,22 @@ def render_update_banner(lang: str) -> None:
 def render_update_settings(lang: str) -> None:
     """Settings section: status + force re-check."""
     st.subheader(t("update_section", lang))
-    status = _ensure_checked(force=True)
+    status = _ensure_checked()
     repo_path = ROOT / "GITHUB_REPO"
     if status.error_code == ERR_NOT_CONFIGURED:
-        st.caption(f"`{repo_path}` — exists: **{repo_path.is_file()}**")
+        st.caption(
+            t(
+                "update_repo_file_exists",
+                lang,
+                path=str(repo_path),
+                exists=repo_path.is_file(),
+            )
+        )
         resolved = resolve_github_repo()
         if repo_path.is_file() and resolved is None:
-            st.warning(
-                "GITHUB_REPO was found but no valid `owner/name` line was parsed. "
-                "Use one line like `cyril-ver-mar/quanta` (comments with `#` are OK on other lines)."
-            )
+            st.warning(t("update_repo_parse_fail", lang))
         elif not repo_path.is_file():
-            st.warning(
-                f"Create `{repo_path.name}` in the app folder (next to `app.py`) "
-                "with one line: `cyril-ver-mar/quanta`"
-            )
+            st.warning(t("update_repo_create_hint", lang, name=repo_path.name))
     fail_text = _status_error_text(status, lang)
     if fail_text:
         st.warning(fail_text)
@@ -182,12 +226,29 @@ def render_update_settings(lang: str) -> None:
             )
         )
         if status.update_available and status.latest:
-            st.markdown(f"[{t('update_open_release', lang)}]({status.latest.html_url})")
+            latest = status.latest
+            st.caption(t("update_install_help", lang))
+            if latest.zip_url:
+                if st.button(t("update_yes_install", lang), key="_settings_update_install"):
+                    try:
+                        with st.spinner(t("update_working", lang)):
+                            _apply_update(latest.zip_url)
+                        st.rerun()
+                    except Exception as exc:
+                        logger.exception("Update install failed")
+                        st.error(t("update_failed", lang, err=str(exc)))
+            else:
+                st.warning(t("update_no_zip", lang))
+                st.markdown(f"[{t('update_open_release', lang)}]({latest.html_url})")
         elif status.latest:
             st.success(t("update_up_to_date", lang))
 
     if st.button(t("update_check_now", lang), key="_update_check_now"):
+        clear_update_cache()
         st.session_state.pop(_SESSION_STATUS, None)
         st.session_state.pop(_SESSION_DISMISSED, None)
         st.session_state.pop(_SESSION_ERROR, None)
+        st.session_state[_SESSION_STATUS] = check_for_update(
+            local_version=get_version(), use_cache=False
+        )
         st.rerun()

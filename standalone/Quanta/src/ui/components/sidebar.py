@@ -36,10 +36,10 @@ def render_sidebar(settings: AppSettings) -> AppSettings:
         st.sidebar.caption(f"📁 {project.name}")
     if st.sidebar.button(t("soft_cancel", lang)):
         request_soft_cancel()
-        st.sidebar.success("Soft cancel requested")
+        st.sidebar.success(t("soft_cancel_ok", lang))
     if st.sidebar.button(t("hard_stop", lang)):
         request_hard_stop()
-        st.sidebar.error("Hard stop requested")
+        st.sidebar.error(t("hard_stop_ok", lang))
     st.sidebar.caption(version_label())
     render_update_banner(lang)
     return settings

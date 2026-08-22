@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 DEFAULT_ROUTE = "opt pbe/6-31g(d) geom=connectivity int=ultrafine"
@@ -21,12 +22,50 @@ class GaussianJobSpec:
     route: str = DEFAULT_ROUTE
 
 
+def connectivity_from_mol(mol: Any) -> list[str]:
+    """Gaussian connectivity section (1-based) from an RDKit molecule."""
+    n = int(mol.GetNumAtoms())
+    partners: list[list[tuple[int, float]]] = [[] for _ in range(n)]
+    for bond in mol.GetBonds():
+        i = int(bond.GetBeginAtomIdx())
+        j = int(bond.GetEndAtomIdx())
+        order = float(bond.GetBondTypeAsDouble())
+        if j > i:
+            partners[i].append((j + 1, order))
+        else:
+            partners[j].append((i + 1, order))
+    lines: list[str] = []
+    for atom_i in range(n):
+        parts = [str(atom_i + 1)]
+        for other, order in sorted(partners[atom_i]):
+            parts.append(str(other))
+            parts.append(f"{order:.1f}")
+        lines.append(" ".join(parts))
+    return lines
+
+
+def ensure_opt_route(route: str, *, has_connectivity: bool) -> str:
+    """Keep geom=connectivity only when a connectivity block is present."""
+    cleaned = " ".join(route.split())
+    if has_connectivity:
+        if "geom=connectivity" not in cleaned.lower():
+            return f"{cleaned} geom=connectivity"
+        return cleaned
+    return (
+        cleaned.replace("geom=connectivity", "")
+        .replace("Geom=Connectivity", "")
+        .replace("  ", " ")
+        .strip()
+    )
+
+
 def write_gjf(spec: GaussianJobSpec) -> str:
+    route = ensure_opt_route(spec.route, has_connectivity=bool(spec.connectivity))
     lines: list[str] = [
         f"%chk={spec.chk_name}",
         f"%nprocshared={spec.nproc}",
         f"%mem={spec.mem_mb}MB",
-        f"# {spec.route}",
+        f"# {route}",
         "",
         spec.title,
         "",

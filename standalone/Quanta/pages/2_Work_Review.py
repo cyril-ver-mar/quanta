@@ -27,7 +27,7 @@ init_session_state()
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_work_review", lang))
-st.caption("Inspect 3D geometry, charge/multiplicity, and linked jobs before queuing Gaussian.")
+st.caption(t("review_caption", lang))
 
 if get_project() is None:
     st.info(t("need_project", lang))
@@ -55,7 +55,7 @@ style = st.radio(
     t("review_style", lang),
     options=["stick", "ballstick", "sphere", "line"],
     horizontal=True,
-    format_func=lambda s: s.replace("ballstick", "ball+stick"),
+    format_func=lambda s: t("review_style_ballstick", lang) if s == "ballstick" else s,
 )
 
 try:
@@ -66,17 +66,18 @@ except Exception as exc:
 
 comp = bundle.compound
 m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Atoms", comp.n_atoms)
+m1.metric(t("atoms", lang), comp.n_atoms)
 m2.metric(t("charge", lang), comp.charge)
 m3.metric(t("multiplicity", lang), comp.multiplicity)
-m4.metric("Formula", comp.formula)
-m5.metric("Format", comp.source_format.upper())
+m4.metric(t("formula", lang), comp.formula)
+m5.metric(t("field_format", lang), comp.source_format.upper())
 
 elements = (comp.meta_json or {}).get("elements") or {}
 if elements:
-    st.caption("Elements: " + ", ".join(f"{k}×{v}" for k, v in sorted(elements.items())))
+    el_list = ", ".join(f"{k}×{v}" for k, v in sorted(elements.items()))
+    st.caption(t("review_elements", lang, list=el_list))
 
-st.subheader("3D model")
+st.subheader(t("review_3d", lang))
 render_molecule_3d(bundle.mol_block, fmt="mol", style=style)
 
 with st.expander(t("review_atoms", lang), expanded=False):
@@ -84,17 +85,17 @@ with st.expander(t("review_atoms", lang), expanded=False):
 
 st.subheader(t("review_jobs", lang))
 if not bundle.jobs:
-    st.info("No jobs yet for this compound. Create one on the Jobs page.")
+    st.info(t("review_no_jobs", lang))
 else:
     st.dataframe(
         pd.DataFrame(
             [
                 {
-                    "id": j.id,
-                    "name": j.name,
-                    "status": j.status.value,
-                    "progress": j.progress,
-                    "route": j.route,
+                    t("col_id", lang): j.id,
+                    t("col_name", lang): j.name,
+                    t("col_status", lang): j.status.value,
+                    t("col_progress", lang): j.progress,
+                    t("col_route", lang): j.route,
                 }
                 for j in bundle.jobs
             ]
@@ -115,8 +116,8 @@ with st.expander(t("review_gjf_preview", lang)):
     except Exception as exc:
         st.error(str(exc))
 
-if st.button("Create job for this compound"):
+if st.button(t("review_create_job", lang)):
     jid = JobService().create_job(compound_id, settings)
-    st.success(f"Queued job id={jid}")
+    st.success(t("review_job_queued", lang, id=jid))
     st.session_state.selected_job_id = jid
     st.rerun()

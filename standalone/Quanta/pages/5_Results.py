@@ -110,7 +110,7 @@ else:
             if labels[k] == st.session_state.selected_job_id:
                 default_ix = i
                 break
-    choice = st.selectbox("Job", list(labels.keys()), index=default_ix)
+    choice = st.selectbox(t("results_job_select", lang), list(labels.keys()), index=default_ix)
     jid = labels[choice]
 
     job_svc = JobService()
@@ -133,12 +133,21 @@ else:
         if summary.get("protocol") == "dscf":
             e0 = summary.get("e0_ha")
             if e0 is not None:
-                st.metric("E₀ (Ha)", f"{e0:.8f}")
+                st.metric(t("results_e0", lang), f"{e0:.8f}")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("HOMO (eV)", f"{summary.get('homo_ev'):.3f}" if summary.get("homo_ev") is not None else "—")
-        m2.metric("LUMO (eV)", f"{summary.get('lumo_ev'):.3f}" if summary.get("lumo_ev") is not None else "—")
-        m3.metric("Gap (eV)", f"{summary.get('gap_ev'):.3f}" if summary.get("gap_ev") is not None else "—")
-        m4.metric("Core-hole jobs", summary.get("n_corehole_jobs", "—"))
+        m1.metric(
+            t("results_homo", lang),
+            f"{summary.get('homo_ev'):.3f}" if summary.get("homo_ev") is not None else "—",
+        )
+        m2.metric(
+            t("results_lumo", lang),
+            f"{summary.get('lumo_ev'):.3f}" if summary.get("lumo_ev") is not None else "—",
+        )
+        m3.metric(
+            t("results_gap", lang),
+            f"{summary.get('gap_ev'):.3f}" if summary.get("gap_ev") is not None else "—",
+        )
+        m4.metric(t("results_n_corehole", lang), summary.get("n_corehole_jobs", "—"))
 
         cores = pd.DataFrame(summary.get("core_levels") or [])
         if not cores.empty:
@@ -147,7 +156,7 @@ else:
             csv_path = job_dir(jid) / "curated" / "core_levels.csv"
             if csv_path.exists():
                 st.download_button(
-                    "core_levels.csv",
+                    t("results_dl_core_csv", lang),
                     csv_path.read_bytes(),
                     file_name="core_levels.csv",
                 )
@@ -161,9 +170,9 @@ else:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=df["binding_ev"], y=df["intensity"], mode="lines", name=f"{element}1s"))
             fig.update_layout(
-                title=f"{element}1s (ΔSCF + Voigt)",
-                xaxis_title="Binding energy (eV)",
-                yaxis_title="Intensity (a.u.)",
+                title=t("results_spectrum_title", lang, element=element),
+                xaxis_title=t("results_be_axis", lang),
+                yaxis_title=t("results_intensity_axis", lang),
                 xaxis_autorange="reversed",
             )
             st.plotly_chart(fig, use_container_width=True)
