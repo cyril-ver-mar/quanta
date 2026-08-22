@@ -43,12 +43,20 @@ class JobService:
             apply_c1s_shift=settings.dscf_apply_c1s_shift,
         )
 
-    def create_job(self, compound_id: int, settings: AppSettings, name: str | None = None) -> int:
+    def create_job(
+        self,
+        compound_id: int,
+        settings: AppSettings,
+        name: str | None = None,
+        *,
+        project_name: str | None = None,
+    ) -> int:
         compound = self.compounds.get(compound_id)
         if compound is None:
             raise ValueError(f"Compound {compound_id} not found")
 
         dscf = self._dscf_settings(settings)
+        proj = (project_name or "default").strip() or "default"
         job = Job(
             id=None,
             compound_id=compound_id,
@@ -57,7 +65,7 @@ class JobService:
             route=opt_route(dscf),
             nproc=settings.nproc,
             mem_mb=settings.mem_mb,
-            meta_json={"protocol": "dscf"},
+            meta_json={"protocol": "dscf", "project_name": proj},
         )
         job_id = self.repo.add(job)
         jdir = job_dir(job_id)
@@ -68,7 +76,7 @@ class JobService:
         opt_gjf = jdir / "input" / opt.gjf_name
         connectivity = connectivity_from_mol(mol) if mol.GetNumBonds() > 0 else None
         spec = GaussianJobSpec(
-            title=f"{compound.name} · ΔSCF step 1 OPT",
+            title=f"{compound.name} - DSCF step 1 OPT",
             charge=compound.charge,
             multiplicity=compound.multiplicity,
             atoms=atoms,
@@ -119,7 +127,7 @@ class JobService:
         neutral = next(s for s in steps if s.kind == StepKind.NEUTRAL_SP)
         jdir = job_dir(job_id)
         text = write_checkpoint_job(
-            title=f"{compound.name} · ΔSCF step 2 neutral SP",
+            title=f"{compound.name} - DSCF step 2 neutral SP",
             charge=compound.charge,
             multiplicity=compound.multiplicity,
             route=neutral.route,
@@ -146,7 +154,7 @@ class JobService:
             raise ValueError(f"Orbital mapping missing for step {step.key}")
         label = f"{step.element}{step.atom_index + 1}"
         text = write_checkpoint_job(
-            title=f"{compound.name} · ΔSCF core hole {label}",
+            title=f"{compound.name} - DSCF core hole {label}",
             charge=compound.charge,
             multiplicity=2,
             route=step.route,

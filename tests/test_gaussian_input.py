@@ -58,3 +58,42 @@ def test_coerce_gui_alone_returns_none(tmp_path: Path) -> None:
     gui = tmp_path / "g09w.exe"
     gui.write_bytes(b"x")
     assert _coerce_cli_exe(str(gui)) is None
+
+
+def test_ascii_safe_strips_unicode_for_gaussian() -> None:
+    from src.core.gaussian_input import ascii_safe, write_gjf, GaussianJobSpec
+
+    assert "Delta" in ascii_safe("ethane · ΔSCF OPT")
+    text = write_gjf(
+        GaussianJobSpec(
+            title="ethane · ΔSCF step 1 OPT",
+            charge=0,
+            multiplicity=1,
+            atoms=[("C", 0.0, 0.0, 0.0)],
+            route="sp pbe/6-31g(d)",
+        )
+    )
+    assert all(ord(c) < 128 for c in text)
+
+
+def test_gaussian_run_dir_nests_project_and_job(tmp_path: Path) -> None:
+    from src.utils.paths import gaussian_run_dir
+
+    path = gaussian_run_dir(
+        work_dir=str(tmp_path / "work"),
+        project_name="My Project",
+        job_id=7,
+        job_name="ethane_dscf_xps",
+    )
+    assert path == tmp_path / "work" / "My_Project" / "7_ethane_dscf_xps"
+    assert path.is_dir()
+
+
+def test_resolve_strips_quotes(tmp_path: Path, monkeypatch) -> None:
+    from src.services.gaussian_runner import resolve_gaussian_exe
+    from src.utils.config import AppSettings
+
+    cli = tmp_path / "g09.exe"
+    cli.write_bytes(b"x")
+    settings = AppSettings(gaussian_exe=f'"{cli}"')
+    assert resolve_gaussian_exe(settings) == str(cli)

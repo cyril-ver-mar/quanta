@@ -79,7 +79,13 @@ else:
     )
 
     if st.button(t("workflow_create_btn", lang), type="primary"):
-        jid = jobs.create_job(options[label], settings, name=job_name or None)
+        proj = get_project()
+        jid = jobs.create_job(
+            options[label],
+            settings,
+            name=job_name or None,
+            project_name=proj.name if proj else None,
+        )
         st.session_state.selected_job_id = jid
         st.success(t("workflow_created", lang).format(job_id=jid))
         st.rerun()

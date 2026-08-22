@@ -78,7 +78,13 @@ if st.button(t("results_fixture_btn", lang)):
             meta_json={"elements": {"C": 3, "N": 6, "H": 6}},
         )
     )
-    jid = js.create_job(cid, settings, name="melanine_fixture")
+    proj = get_project()
+    jid = js.create_job(
+        cid,
+        settings,
+        name="melanine_fixture",
+        project_name=proj.name if proj else None,
+    )
     d = job_dir(jid)
     shutil.copy2(FIXTURES_DIR / "melanine" / "MELANINE.LOG", d / "raw" / f"job_{jid}_01_opt.log")
     shutil.copy2(FIXTURES_DIR / "melanine" / "melanine.gjf", d / "input" / "melanine.gjf")

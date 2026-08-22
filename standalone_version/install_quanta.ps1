@@ -28,7 +28,7 @@ $Repo = "cyril-ver-mar/quanta"
 if ($env:QUANTA_GITHUB_REPO) { $Repo = $env:QUANTA_GITHUB_REPO }
 
 $AppDirName = "Quanta"
-$Preserve = @("data", "exports", "venv", ".venv")
+$Preserve = @("data", "exports", "venv", ".venv", "SECRETS")
 $ScriptArgs = @($args)
 
 function Write-Info([string]$Msg) { Write-Host $Msg }
@@ -129,7 +129,7 @@ function Find-AppRoot {
 
 Write-Info ""
 Write-Info "  ============================================================"
-Write-Info "    Quanta - Bootstrap (download latest from GitHub)"
+Write-Info "    Quanta - Installer (download latest from GitHub)"
 Write-Info "  ============================================================"
 Write-Info ""
 Write-Info "  Choose install folder."
@@ -261,16 +261,28 @@ Write-Info ("  OK Installed to " + $Dest)
 Remove-Item -Path $Tmp -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Info ""
-Write-Info "  [4/4] Next steps"
+Write-Info "  [4/4] Install Python dependencies (install.bat)..."
+$InstallBat = Join-Path $Dest "install.bat"
+if (-not (Test-Path $InstallBat)) {
+    Fail-Install ("install.bat missing in " + $Dest)
+}
+
+$env:QUANTA_INSTALL_NOPAUSE = "1"
+$Proc = Start-Process -FilePath $env:ComSpec `
+    -ArgumentList @("/c", "`"$InstallBat`"") `
+    -WorkingDirectory $Dest `
+    -Wait -PassThru -NoNewWindow
+if ($null -eq $Proc -or $Proc.ExitCode -ne 0) {
+    $code = if ($Proc) { $Proc.ExitCode } else { -1 }
+    Fail-Install ("install.bat failed (exit $code). Re-run from: $Dest")
+}
+
+Write-Info "  OK Dependencies installed"
 Write-Info ""
-Write-Info "  1. Open cmd or PowerShell"
-Write-Info "  2. cd to app folder:"
-Write-Info ("     cd /d " + $Dest)
-Write-Info "  3. First time: install.bat"
-Write-Info "  4. Start: run.bat"
-Write-Info ""
+Write-Info "  Start the app:"
+Write-Info ("    " + (Join-Path $Dest "run.bat"))
 Write-Info "  Browser: http://localhost:8501"
 Write-Info ""
-Write-Info "  OK Bootstrap finished."
+Write-Info "  OK Install finished."
 Write-Info ""
 Read-Host "  Press Enter to close"

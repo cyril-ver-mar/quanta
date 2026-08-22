@@ -17,7 +17,7 @@ from src.core.dscf import (
     list_xps_atoms,
     next_runnable_step,
 )
-from src.core.models import JobStatus
+from src.core.models import Job, JobStatus
 from src.db.repositories import JobRepository
 from src.services.compound_service import CompoundService, mol_to_atoms
 from src.services.gaussian_parser import estimate_eta_seconds, final_scf_energy_ha, parse_gaussian_log
@@ -26,7 +26,7 @@ from src.services.results_service import ResultsService
 from src.utils.cancel import clear_cancel_flags, hard_stop_requested, soft_cancel_requested
 from src.utils.config import AppSettings
 from src.utils.logging_setup import get_logger
-from src.utils.paths import job_dir
+from src.utils.paths import gaussian_run_dir, job_dir
 
 logger = get_logger("quanta.runner")
 
@@ -34,9 +34,13 @@ logger = get_logger("quanta.runner")
 _GUI_NAMES = frozenset({"g09w.exe", "g16w.exe", "g09w", "g16w"})
 
 
+def _clean_exe_path(raw: str) -> str:
+    return (raw or "").strip().strip('"').strip("'")
+
+
 def _coerce_cli_exe(exe: str) -> str | None:
     """Prefer command-line Gaussian over the Windows GUI wrapper."""
-    path = Path(exe)
+    path = Path(_clean_exe_path(exe))
     name = path.name.lower()
     if name.endswith(".app"):
         logger.warning("Gaussian.app cannot be driven from Quanta — set path to g09/g16 binary")
@@ -60,7 +64,7 @@ def gaussian_available(settings: AppSettings) -> bool:
 
 
 def resolve_gaussian_exe(settings: AppSettings) -> str | None:
-    exe = (settings.gaussian_exe or "").strip()
+    exe = _clean_exe_path(settings.gaussian_exe or "")
     if exe and Path(exe).exists():
         return _coerce_cli_exe(exe)
     for name in ("g09", "g16"):
@@ -68,6 +72,56 @@ def resolve_gaussian_exe(settings: AppSettings) -> str | None:
         if found:
             return found
     return None
+
+
+def _find_gaussian_output(cwd: Path, stem: str) -> Path | None:
+    """Locate the log/out Gaussian wrote next to the input."""
+    candidates = [
+        cwd / f"{stem}.log",
+        cwd / f"{stem}.LOG",
+        cwd / f"{stem}.out",
+        cwd / f"{stem}.OUT",
+    ]
+    for path in candidates:
+        if path.is_file() and path.stat().st_size > 0:
+            return path
+    # Case-insensitive fallback (Windows)
+    lower = {f"{stem}.log", f"{stem}.out"}
+    for path in cwd.iterdir():
+        if path.is_file() and path.name.lower() in lower and path.stat().st_size > 0:
+            return path
+    return None
+
+
+def _launch_gaussian(
+    exe: str,
+    local_gjf: Path,
+    cwd: Path,
+    env: dict[str, str],
+    stdout_f,
+) -> subprocess.Popen:
+    """Start Gaussian. On Windows G09W prefers the job stem (no extension)."""
+    exe_path = Path(exe).resolve()
+    if os.name == "nt":
+        # cmd.exe so paths with spaces and G09W batch wrappers work.
+        # Job argument without .gjf — standard G09W CLI form: g09 jobname
+        cmdline = f'"{exe_path}" {local_gjf.stem}'
+        logger.info("Windows Gaussian cmdline: %s (cwd=%s)", cmdline, cwd)
+        return subprocess.Popen(
+            cmdline,
+            cwd=str(cwd),
+            stdout=stdout_f,
+            stderr=subprocess.STDOUT,
+            env=env,
+            shell=True,
+        )
+    return subprocess.Popen(
+        [str(exe_path), local_gjf.name],
+        cwd=str(cwd),
+        stdout=stdout_f,
+        stderr=subprocess.STDOUT,
+        env=env,
+    )
 
 
 class GaussianRunner:
@@ -188,6 +242,15 @@ class GaussianRunner:
             self.jobs.save_steps(job_id, steps)
             return
 
+    def _run_cwd(self, job: Job, settings: AppSettings) -> Path:
+        project = str((job.meta_json or {}).get("project_name") or "default")
+        return gaussian_run_dir(
+            work_dir=settings.work_dir or "",
+            project_name=project,
+            job_id=int(job.id or 0),
+            job_name=job.name or f"job_{job.id}",
+        )
+
     def _run_step(self, job_id: int, step, settings: AppSettings, exe: str) -> bool:
         jdir = job_dir(job_id)
         gjf = jdir / "input" / step.gjf_name
@@ -216,46 +279,50 @@ class GaussianRunner:
         clear_cancel_flags()
         env = os.environ.copy()
         exe_path = Path(exe).resolve()
-        env.setdefault("GAUSS_EXEDIR", str(exe_path.parent))
-        if settings.scratch_dir:
-            env["GAUSS_SCRDIR"] = settings.scratch_dir
-            Path(settings.scratch_dir).mkdir(parents=True, exist_ok=True)
-        cwd = settings.work_dir or str(jdir / "raw")
-        Path(cwd).mkdir(parents=True, exist_ok=True)
+        env["GAUSS_EXEDIR"] = str(exe_path.parent)
 
-        local_gjf = Path(cwd) / gjf.name
-        local_gjf.write_text(gjf.read_text(encoding="utf-8"), encoding="utf-8")
-
-        # Gaussian writes <stem>.log itself. Do not open that path as stdout — on Windows
-        # the lock prevents the job from running (GUI may open idle).
-        gauss_log = Path(cwd) / f"{local_gjf.stem}.log"
-        stdout_capture = Path(cwd) / f"{local_gjf.stem}.stdout.txt"
-        if gauss_log.exists():
-            gauss_log.unlink()
-
-        cmd = [str(exe_path), local_gjf.name]
-        logger.info("Starting job %s step %s: %s (cwd=%s)", job_id, step.key, cmd, cwd)
-        started = time.time()
         job = self.repo.get(job_id)
         assert job is not None
+        cwd_path = self._run_cwd(job, settings)
+        cwd = str(cwd_path)
+
+        if settings.scratch_dir:
+            scratch = Path(settings.scratch_dir)
+        else:
+            scratch = cwd_path / "scratch"
+        scratch.mkdir(parents=True, exist_ok=True)
+        env["GAUSS_SCRDIR"] = str(scratch)
+
+        local_gjf = cwd_path / gjf.name
+        # Gaussian on Windows is happiest with CRLF / ASCII input.
+        text = gjf.read_text(encoding="utf-8")
+        local_gjf.write_text(text, encoding="ascii", errors="replace", newline="\n")
+
+        gauss_stem = local_gjf.stem
+        stdout_capture = cwd_path / f"{gauss_stem}.stdout.txt"
+        for stale in cwd_path.glob(f"{gauss_stem}.*"):
+            if stale.suffix.lower() in {".log", ".out"} and stale.is_file():
+                try:
+                    stale.unlink()
+                except OSError:
+                    pass
+
+        logger.info("Starting job %s step %s in %s", job_id, step.key, cwd)
+        started = time.time()
         job.meta_json["current_step"] = step.key
         job.meta_json["current_gjf"] = str(gjf)
+        job.meta_json["gaussian_cwd"] = cwd
         self.repo.update(job)
 
+        exit_code: int | None = None
         try:
-            with open(stdout_capture, "w", encoding="utf-8") as stdout_f:
-                self._proc = subprocess.Popen(
-                    cmd,
-                    cwd=cwd,
-                    stdout=stdout_f,
-                    stderr=subprocess.STDOUT,
-                    env=env,
-                )
+            with open(stdout_capture, "w", encoding="utf-8", errors="replace") as stdout_f:
+                self._proc = _launch_gaussian(exe, local_gjf, cwd_path, env, stdout_f)
                 while True:
                     ret = self._proc.poll()
-                    monitor_log = gauss_log if gauss_log.exists() and gauss_log.stat().st_size > 0 else None
-                    if monitor_log is not None:
-                        parsed = parse_gaussian_log(monitor_log)
+                    monitor = _find_gaussian_output(cwd_path, gauss_stem)
+                    if monitor is not None:
+                        parsed = parse_gaussian_log(monitor)
                         job.progress = parsed.progress_estimate * (
                             sum(1 for s in self.jobs.get_steps(job_id) if s.status == StepStatus.COMPLETED)
                             + 0.5
@@ -279,25 +346,33 @@ class GaussianRunner:
                         clear_cancel_flags()
                         return False
                     if ret is not None:
+                        exit_code = ret
                         break
                     time.sleep(2)
 
-            for pattern in ("*.chk", "*.log", "*.out"):
-                for f in Path(cwd).glob(pattern):
+            for pattern in ("*.chk", "*.log", "*.LOG", "*.out", "*.OUT"):
+                for f in cwd_path.glob(pattern):
                     dest = jdir / "raw" / f.name
                     if f.resolve() != dest.resolve():
                         shutil.copy2(f, dest)
 
-            if gauss_log.exists() and gauss_log.resolve() != out_log.resolve():
-                shutil.copy2(gauss_log, out_log)
-            elif not out_log.exists() and gauss_log.exists():
-                shutil.copy2(gauss_log, out_log)
+            found = _find_gaussian_output(cwd_path, gauss_stem)
+            if found is not None:
+                if found.resolve() != out_log.resolve():
+                    shutil.copy2(found, out_log)
+            elif out_log.exists() and out_log.stat().st_size == 0:
+                out_log.unlink()
 
             if not out_log.exists() or out_log.stat().st_size == 0:
+                stdout_tail = ""
+                if stdout_capture.exists():
+                    stdout_tail = stdout_capture.read_text(encoding="utf-8", errors="replace")[-800:]
+                detail = stdout_tail.strip() or "(no stdout)"
                 step.status = StepStatus.FAILED
                 step.error = (
-                    "Gaussian produced no log. Use the CLI binary (g09.exe / g16.exe), "
-                    "not the Windows GUI (g09w.exe)."
+                    f"Gaussian produced no log (exit={exit_code}). "
+                    f"cwd={cwd}. Check g09.exe path, GAUSS_SCRDIR, and input. "
+                    f"stdout: {detail}"
                 )
                 steps = self.jobs.get_steps(job_id)
                 for i, s in enumerate(steps):

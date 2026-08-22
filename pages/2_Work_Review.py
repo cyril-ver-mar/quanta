@@ -117,7 +117,12 @@ with st.expander(t("review_gjf_preview", lang)):
         st.error(str(exc))
 
 if st.button(t("review_create_job", lang)):
-    jid = JobService().create_job(compound_id, settings)
+    proj = get_project()
+    jid = JobService().create_job(
+        compound_id,
+        settings,
+        project_name=proj.name if proj else None,
+    )
     st.success(t("review_job_queued", lang, id=jid))
     st.session_state.selected_job_id = jid
     st.rerun()

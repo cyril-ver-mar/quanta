@@ -24,17 +24,17 @@ echo   ^|   Starting Streamlit...                      ^|
 echo   ^|                                              ^|
 echo   +----------------------------------------------+%C_RESET%
 if defined VER (
-  echo %C_DIM%  v%VER%  ·  http://localhost:8501  ·  Ctrl+C to stop%C_RESET%
+  echo %C_DIM%  v%VER%  *  http://localhost:8501  *  Ctrl+C to stop%C_RESET%
 ) else (
-  echo %C_DIM%  http://localhost:8501  ·  Ctrl+C to stop%C_RESET%
+  echo %C_DIM%  http://localhost:8501  *  Ctrl+C to stop%C_RESET%
 )
 echo %C_DIM%  Gaussian DFT -^> Delta-SCF XPS workflow%C_RESET%
 echo.
 echo %C_BOLD%  If the browser does not open automatically:%C_RESET%
-echo   %C_ACCENT%·%C_RESET% open http://localhost:8501 yourself
-echo   %C_ACCENT%·%C_RESET% or try http://127.0.0.1:8501
-echo   %C_ACCENT%·%C_RESET% if the port is busy, stop the other Streamlit and re-run
-echo   %C_ACCENT%·%C_RESET% set Gaussian path in Settings before running jobs (Windows)
+echo   %C_ACCENT%*%C_RESET% open http://localhost:8501 yourself
+echo   %C_ACCENT%*%C_RESET% or try http://127.0.0.1:8501
+echo   %C_ACCENT%*%C_RESET% if the port is busy, stop the other Streamlit and re-run
+echo   %C_ACCENT%*%C_RESET% set Gaussian path in Settings before running jobs (Windows)
 echo.
 
 if not exist "venv\Scripts\python.exe" (
@@ -44,8 +44,8 @@ if not exist "venv\Scripts\python.exe" (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Run: install.bat
-  echo   %C_ACCENT%·%C_RESET% Then: run.bat
+  echo   %C_ACCENT%*%C_RESET% Run: install.bat
+  echo   %C_ACCENT%*%C_RESET% Then: run.bat
   echo.
   pause
   exit /b 1
@@ -58,8 +58,8 @@ if not exist app.py (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Run install.bat from the Quanta project folder
-  echo   %C_ACCENT%·%C_RESET% Or use standalone_version\install_quanta.bat to download the app
+  echo   %C_ACCENT%*%C_RESET% Run install.bat from the Quanta project folder
+  echo   %C_ACCENT%*%C_RESET% Or use standalone_version\install_quanta.bat to download the app
   echo.
   pause
   exit /b 1
@@ -82,14 +82,14 @@ if not exist requirements.txt (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Run install.bat from the Quanta project folder
+  echo   %C_ACCENT%*%C_RESET% Run install.bat from the Quanta project folder
   echo.
   pause
   exit /b 1
 )
 
 call "venv\Scripts\activate.bat"
-echo   %C_OK%✓%C_RESET% venv ready
+echo   %C_OK%OK%C_RESET% venv ready
 echo   %C_ACCENT%-^>%C_RESET% checking packages...
 set "PYTHONPATH=%CD%"
 python -m src.utils.deps_check --ensure
@@ -100,14 +100,14 @@ if errorlevel 1 (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Check network / pip, then: install.bat
-  echo   %C_ACCENT%·%C_RESET% Or: venv\Scripts\activate ^&^& pip install -r requirements.txt
-  echo   %C_ACCENT%·%C_RESET% Then: run.bat
+  echo   %C_ACCENT%*%C_RESET% Check network / pip, then: install.bat
+  echo   %C_ACCENT%*%C_RESET% Or: venv\Scripts\activate ^&^& pip install -r requirements.txt
+  echo   %C_ACCENT%*%C_RESET% Then: run.bat
   echo.
   pause
   exit /b 1
 )
-echo   %C_OK%✓%C_RESET% all runtime packages ready
+echo   %C_OK%OK%C_RESET% all runtime packages ready
 echo   %C_ACCENT%-^>%C_RESET% launching Streamlit...
 echo.
 
@@ -117,8 +117,8 @@ if not "%EC%"=="0" (
   echo.
   echo %C_ERR%Streamlit exited with code %EC%%C_RESET%
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% If port 8501 is busy, stop the other Streamlit process
-  echo   %C_ACCENT%·%C_RESET% Re-run install.bat if packages are broken
+  echo   %C_ACCENT%*%C_RESET% If port 8501 is busy, stop the other Streamlit process
+  echo   %C_ACCENT%*%C_RESET% Re-run install.bat if packages are broken
   echo.
   pause
 )

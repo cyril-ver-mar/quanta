@@ -8,6 +8,26 @@ from typing import Any
 
 DEFAULT_ROUTE = "opt pbe/6-31g(d) geom=connectivity int=ultrafine"
 
+# Windows Gaussian often chokes on non-ASCII in the title / Link0 lines.
+_ASCII_REPLACEMENTS = (
+    ("·", "-"),
+    ("Δ", "Delta-"),
+    ("δ", "delta-"),
+    ("–", "-"),
+    ("—", "-"),
+    ("′", "'"),
+    ("μ", "u"),
+    ("Å", "A"),
+)
+
+
+def ascii_safe(text: str) -> str:
+    """Reduce text to Latin-1/ASCII safe for Gaussian input files."""
+    out = text or ""
+    for src, dst in _ASCII_REPLACEMENTS:
+        out = out.replace(src, dst)
+    return out.encode("ascii", "replace").decode("ascii")
+
 
 @dataclass
 class GaussianJobSpec:
@@ -62,12 +82,12 @@ def ensure_opt_route(route: str, *, has_connectivity: bool) -> str:
 def write_gjf(spec: GaussianJobSpec) -> str:
     route = ensure_opt_route(spec.route, has_connectivity=bool(spec.connectivity))
     lines: list[str] = [
-        f"%chk={spec.chk_name}",
+        f"%chk={ascii_safe(spec.chk_name)}",
         f"%nprocshared={spec.nproc}",
         f"%mem={spec.mem_mb}MB",
-        f"# {route}",
+        f"# {ascii_safe(route)}",
         "",
-        spec.title,
+        ascii_safe(spec.title),
         "",
         f"{spec.charge} {spec.multiplicity}",
     ]
@@ -94,13 +114,13 @@ def write_checkpoint_job(
 ) -> str:
     """SP from checkpoint; optional Guess=Alter swap pair (core orbital, HOMO)."""
     lines: list[str] = [
-        f"%oldchk={oldchk}",
-        f"%chk={chk}",
+        f"%oldchk={ascii_safe(oldchk)}",
+        f"%chk={ascii_safe(chk)}",
         f"%nprocshared={nproc}",
         f"%mem={mem_mb}MB",
-        f"# {route}",
+        f"# {ascii_safe(route)}",
         "",
-        title,
+        ascii_safe(title),
         "",
         f"{charge} {multiplicity}",
         "",

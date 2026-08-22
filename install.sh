@@ -160,3 +160,12 @@ echo
 tip "./run.sh"
 printf '%s  Windows: run.bat · Settings → Gaussian path (Windows run mode)%s\n' "$C_DIM" "$C_RESET"
 echo
+
+# Drop installer so end users are not confused by a second setup script.
+echo
+printf '  Removing install.sh (no longer needed)...\n'
+(
+  sleep 1
+  rm -f "$ROOT/install.sh"
+) &
+

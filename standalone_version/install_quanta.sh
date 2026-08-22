@@ -5,7 +5,7 @@ set -euo pipefail
 
 REPO="${QUANTA_GITHUB_REPO:-cyril-ver-mar/quanta}"
 APP_DIR_NAME="Quanta"
-PRESERVE=("data" "exports" "venv" ".venv")
+PRESERVE=("data" "exports" "venv" ".venv" "SECRETS")
 
 START_CWD="$(pwd)"
 
@@ -222,19 +222,23 @@ if [[ -f "$DEST/VERSION" ]]; then
 fi
 
 echo
-printf '%s[4/4]%s Next steps\n' "$C_ACCENT" "$C_RESET"
+printf '%s[4/4]%s Install Python dependencies (./install.sh)\n' "$C_ACCENT" "$C_RESET"
+if [[ ! -f "$DEST/install.sh" ]]; then
+  echo "ERROR: install.sh missing in $DEST" >&2
+  exit 1
+fi
+chmod +x "$DEST/install.sh" "$DEST/run.sh" 2>/dev/null || true
+if ! ( cd "$DEST" && ./install.sh ); then
+  echo "ERROR: install.sh failed. Re-run from: $DEST" >&2
+  exit 1
+fi
+
 echo
-printf '%sHow to finish setup and run%s\n' "$C_BOLD" "$C_RESET"
+ok "Dependencies installed"
 echo
-echo "  1. Open Terminal"
-echo "  2. Go to the app folder:"
-printf '     %scd "%s"%s\n' "$C_BOLD" "$DEST" "$C_RESET"
-echo "  3. First time only — install Python deps:"
-printf '     %s./install.sh%s\n' "$C_BOLD" "$C_RESET"
-echo "  4. Start the app:"
-printf '     %s./run.sh%s\n' "$C_BOLD" "$C_RESET"
-echo
+printf '%sStart the app:%s\n' "$C_BOLD" "$C_RESET"
+printf '  %s%s/run.sh%s\n' "$C_BOLD" "$DEST" "$C_RESET"
 echo "  Browser: http://localhost:8501  (or http://127.0.0.1:8501)"
 echo
-ok "Bootstrap finished."
+ok "Install finished."
 echo

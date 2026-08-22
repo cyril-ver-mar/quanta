@@ -47,14 +47,14 @@ if not defined PY (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Install Python 3.11 from https://www.python.org/downloads/
-  echo   %C_ACCENT%·%C_RESET% Tick "Add python.exe to PATH" during setup
-  echo   %C_ACCENT%·%C_RESET% Open a NEW terminal and run: py -3.11 --version
-  echo   %C_ACCENT%·%C_RESET% Then re-run: install.bat
+  echo   %C_ACCENT%*%C_RESET% Install Python 3.11 from https://www.python.org/downloads/
+  echo   %C_ACCENT%*%C_RESET% Tick "Add python.exe to PATH" during setup
+  echo   %C_ACCENT%*%C_RESET% Open a NEW terminal and run: py -3.11 --version
+  echo   %C_ACCENT%*%C_RESET% Then re-run: install.bat
   echo.
   exit /b 1
 )
-echo   %C_OK%✓%C_RESET% Using %PY%
+echo   %C_OK%OK%C_RESET% Using %PY%
 %PY% --version
 
 echo %C_ACCENT%[2/6]%C_RESET% %C_BOLD%Check venv module%C_RESET%
@@ -66,12 +66,12 @@ if errorlevel 1 (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Reinstall Python 3.11 with standard library / pip
-  echo   %C_ACCENT%·%C_RESET% Then re-run: install.bat
+  echo   %C_ACCENT%*%C_RESET% Reinstall Python 3.11 with standard library / pip
+  echo   %C_ACCENT%*%C_RESET% Then re-run: install.bat
   echo.
   exit /b 1
 )
-echo   %C_OK%✓%C_RESET% venv module available
+echo   %C_OK%OK%C_RESET% venv module available
 
 echo %C_ACCENT%[3/6]%C_RESET% %C_BOLD%Create / refresh virtualenv%C_RESET%
 if not exist "venv\Scripts\python.exe" (
@@ -83,15 +83,15 @@ if not exist "venv\Scripts\python.exe" (
     echo %C_ERR%+----------------------------------------------------+%C_RESET%
     echo.
     echo %C_BOLD%How to fix%C_RESET%
-    echo   %C_ACCENT%·%C_RESET% Delete broken folder: rmdir /s /q venv
-    echo   %C_ACCENT%·%C_RESET% Ensure write permission in this folder
-    echo   %C_ACCENT%·%C_RESET% Re-run: install.bat
+    echo   %C_ACCENT%*%C_RESET% Delete broken folder: rmdir /s /q venv
+    echo   %C_ACCENT%*%C_RESET% Ensure write permission in this folder
+    echo   %C_ACCENT%*%C_RESET% Re-run: install.bat
     echo.
     exit /b 1
   )
-  echo   %C_OK%✓%C_RESET% Created .\venv
+  echo   %C_OK%OK%C_RESET% Created .\venv
 ) else (
-  echo   %C_OK%✓%C_RESET% Reusing existing .\venv
+  echo   %C_OK%OK%C_RESET% Reusing existing .\venv
 )
 
 call "venv\Scripts\activate.bat"
@@ -108,7 +108,7 @@ if not exist requirements.txt (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Run install.bat from the Quanta project root
+  echo   %C_ACCENT%*%C_RESET% Run install.bat from the Quanta project root
   echo.
   exit /b 1
 )
@@ -120,12 +120,12 @@ if errorlevel 1 (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Check network / proxy
-  echo   %C_ACCENT%·%C_RESET% Retry: install.bat
+  echo   %C_ACCENT%*%C_RESET% Check network / proxy
+  echo   %C_ACCENT%*%C_RESET% Retry: install.bat
   echo.
   exit /b 1
 )
-echo   %C_OK%✓%C_RESET% pip upgraded
+echo   %C_OK%OK%C_RESET% pip upgraded
 pip install -r requirements.txt
 if errorlevel 1 (
   echo.
@@ -134,13 +134,13 @@ if errorlevel 1 (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Check network access to PyPI
-  echo   %C_ACCENT%·%C_RESET% RDKit may take several minutes on first install
-  echo   %C_ACCENT%·%C_RESET% Try: venv\Scripts\activate ^&^& pip install -r requirements.txt
+  echo   %C_ACCENT%*%C_RESET% Check network access to PyPI
+  echo   %C_ACCENT%*%C_RESET% RDKit may take several minutes on first install
+  echo   %C_ACCENT%*%C_RESET% Try: venv\Scripts\activate ^&^& pip install -r requirements.txt
   echo.
   exit /b 1
 )
-echo   %C_OK%✓%C_RESET% Dependencies installed
+echo   %C_OK%OK%C_RESET% Dependencies installed
 
 echo %C_ACCENT%[5/6]%C_RESET% %C_BOLD%Create data folders ^& smoke-test imports%C_RESET%
 if not exist data\jobs mkdir data\jobs
@@ -155,24 +155,31 @@ if errorlevel 1 (
   echo %C_ERR%+----------------------------------------------------+%C_RESET%
   echo.
   echo %C_BOLD%How to fix%C_RESET%
-  echo   %C_ACCENT%·%C_RESET% Re-run install.bat after fixing pip errors
-  echo   %C_ACCENT%·%C_RESET% Or: venv\Scripts\activate ^&^& pip install -r requirements.txt
+  echo   %C_ACCENT%*%C_RESET% Re-run install.bat after fixing pip errors
+  echo   %C_ACCENT%*%C_RESET% Or: venv\Scripts\activate ^&^& pip install -r requirements.txt
   echo.
   exit /b 1
 )
-echo   %C_OK%✓%C_RESET% All runtime packages import OK (streamlit, rdkit, ...)
-echo   %C_OK%✓%C_RESET% Folders: data\jobs, data\compounds, exports
+echo   %C_OK%OK%C_RESET% All runtime packages import OK (streamlit, rdkit, ...)
+echo   %C_OK%OK%C_RESET% Folders: data\jobs, data\compounds, exports
 
 echo %C_ACCENT%[6/6]%C_RESET% %C_BOLD%Finish%C_RESET%
-echo   %C_OK%✓%C_RESET% Install complete
+echo   %C_OK%OK%C_RESET% Install complete
 echo.
 echo %C_DIM%  -- next --%C_RESET%
 echo   %C_BOLD%run.bat%C_RESET%
 echo %C_DIM%  Settings -^> Gaussian path (Windows run mode)%C_RESET%
 echo.
 echo %C_BOLD%  If the browser does not open by itself:%C_RESET%
-echo   %C_ACCENT%·%C_RESET% open http://localhost:8501
-echo   %C_ACCENT%·%C_RESET% or http://127.0.0.1:8501
+echo   %C_ACCENT%*%C_RESET% open http://localhost:8501
+echo   %C_ACCENT%*%C_RESET% or http://127.0.0.1:8501
 echo.
+echo   Removing install.bat (no longer needed)...
+set "DEL_ME=%~f0"
+start "" /min cmd /c "ping -n 2 127.0.0.1 >nul & del /f /q "%DEL_ME%""
+if /I "%QUANTA_INSTALL_NOPAUSE%"=="1" (
+  endlocal
+  exit /b 0
+)
 pause
 endlocal
