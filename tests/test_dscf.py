@@ -27,6 +27,16 @@ def test_build_workflow_steps_counts():
     assert steps[2].kind.value == "corehole_sp"
 
 
+def test_corehole_charge_multiplicity_for_closed_shell():
+    from src.core.dscf import corehole_charge_multiplicity
+
+    # Ethane: 18 e⁻ neutral singlet → 17 e⁻ cation doublet
+    assert corehole_charge_multiplicity(0, 1) == (1, 2)
+    # Radical neutral doublet → even-electron cation singlet
+    assert corehole_charge_multiplicity(0, 2) == (1, 1)
+    assert corehole_charge_multiplicity(-1, 1) == (0, 2)
+
+
 def test_assign_core_orbitals_and_be():
     orbitals = [
         Orbital(index=1, energy_ha=-11.0, occupancy=2.0),

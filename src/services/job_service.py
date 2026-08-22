@@ -10,6 +10,7 @@ from src.core.dscf import (
     StepKind,
     StepStatus,
     build_workflow_steps,
+    corehole_charge_multiplicity,
     corehole_route,
     neutral_route,
     opt_route,
@@ -156,10 +157,14 @@ class JobService:
         if step.orbital_index is None or step.homo_index is None:
             raise ValueError(f"Orbital mapping missing for step {step.key}")
         label = f"{step.element}{step.atom_index + 1}"
+        charge, multiplicity = corehole_charge_multiplicity(
+            compound.charge,
+            compound.multiplicity,
+        )
         text = write_checkpoint_job(
             title=f"{compound.name} - DSCF core hole {label}",
-            charge=compound.charge,
-            multiplicity=2,
+            charge=charge,
+            multiplicity=multiplicity,
             route=step.route,
             oldchk=f"job_{job_id}_neutral.chk",
             chk=f"job_{job_id}_corehole_{label}.chk",

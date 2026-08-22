@@ -5,6 +5,11 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.19] — 2026-08-23
+
+### Fixed
+- **Core-hole electron count** — ΔSCF CEBE uses the core-ionized cation (`charge = Q+1`); closed-shell neutrals get multiplicity 2 (e.g. ethane `1 2`, not `0 2`). Avoids G09 “multiplicity 2 and N electrons is impossible”.
+
 ## [1.0.18] — 2026-08-23
 
 ### Fixed

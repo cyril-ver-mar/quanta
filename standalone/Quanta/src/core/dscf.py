@@ -128,6 +128,29 @@ def corehole_route(settings: DscfSettings) -> str:
     return f"{method}/{settings.basis} pop=full geom=checkpoint guess=(read,alter)"
 
 
+def corehole_charge_multiplicity(
+    neutral_charge: int,
+    neutral_multiplicity: int,
+) -> tuple[int, int]:
+    """Charge/mult for the core-ionized state (ΔSCF CEBE).
+
+    XPS ΔSCF removes one electron: ``charge = neutral_charge + 1``.
+    That flips electron-count parity, so a closed-shell singlet (mult 1) becomes
+    a doublet cation (mult 2). A doublet radical becomes a singlet cation.
+    Using mult 2 with an even electron count (e.g. neutral ethane, 18 e⁻) makes
+    Gaussian abort: \"multiplicity 2 and 18 electrons is impossible\".
+    """
+    charge = int(neutral_charge) + 1
+    nmult = int(neutral_multiplicity) if neutral_multiplicity else 1
+    if nmult == 1:
+        multiplicity = 2
+    elif nmult == 2:
+        multiplicity = 1
+    else:
+        multiplicity = max(1, nmult - 1)
+    return charge, multiplicity
+
+
 def list_xps_atoms(atoms: list[tuple[str, float, float, float]]) -> list[tuple[int, str]]:
     """Return (0-based atom index, element) for C/N/O in input order."""
     out: list[tuple[int, str]] = []
@@ -182,9 +205,9 @@ def build_workflow_steps(
                 kind=StepKind.COREHOLE_SP,
                 title=f"Step {2 + n} · Core hole on {label}",
                 user_hint=(
-                    f"UKS single-point with a 1s core hole on atom {atom_idx + 1} ({element}). "
-                    "Guess=Alter swaps that atom's 1s with HOMO (doublet). "
-                    f"BE = E(core hole) − E₀. Requires Step 2."
+                    f"UKS single-point: core-ionized (+1) with a 1s hole on atom "
+                    f"{atom_idx + 1} ({element}). Guess=Alter swaps that 1s with HOMO. "
+                    f"BE = E(cation, core hole) − E₀. Requires Step 2."
                 ),
                 status=StepStatus.WAITING,
                 route=corehole_route(settings),
