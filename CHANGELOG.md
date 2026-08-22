@@ -5,6 +5,13 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-08-22
+
+### Added
+- XPS-Deconv-style **install.sh** / **install.bat** with 6-step UX, error hints, and import smoke-test.
+- `src/utils/deps_check.py` and `requirements-runtime.txt` (runtime deps without pytest).
+- `standalone/Quanta/` folder with install scripts and user README for distributable builds.
+
 ## [1.0.1] — 2026-08-22
 
 ### Added
