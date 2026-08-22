@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-DEFAULT_ROUTE = "opt b3lyp/6-31g(d) pop=full geom=connectivity int=ultrafine"
+DEFAULT_ROUTE = "opt pbe/6-31g(d) geom=connectivity int=ultrafine"
 
 
 @dataclass
@@ -38,4 +38,35 @@ def write_gjf(spec: GaussianJobSpec) -> str:
     if spec.connectivity:
         lines.extend(spec.connectivity)
         lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def write_checkpoint_job(
+    *,
+    title: str,
+    charge: int,
+    multiplicity: int,
+    route: str,
+    oldchk: str,
+    chk: str,
+    nproc: int,
+    mem_mb: int,
+    alter_swap: tuple[int, int] | None = None,
+) -> str:
+    """SP from checkpoint; optional Guess=Alter swap pair (core orbital, HOMO)."""
+    lines: list[str] = [
+        f"%oldchk={oldchk}",
+        f"%chk={chk}",
+        f"%nprocshared={nproc}",
+        f"%mem={mem_mb}MB",
+        f"# {route}",
+        "",
+        title,
+        "",
+        f"{charge} {multiplicity}",
+        "",
+    ]
+    if alter_swap is not None:
+        a, b = alter_swap
+        lines.extend(["Alter", f"swap {a},{b}", "end", ""])
     return "\n".join(lines) + "\n"

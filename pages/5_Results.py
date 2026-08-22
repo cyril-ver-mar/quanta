@@ -1,4 +1,4 @@
-"""Results — parse curated XPS / SCF summaries."""
+"""Results — ΔSCF XPS binding energies and simulated spectra."""
 
 from __future__ import annotations
 
@@ -13,9 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.core.models import Compound, JobStatus
+from src.core.dscf import StepStatus
+from src.db.repositories import CompoundRepository, JobRepository
 from src.services.job_service import JobService
 from src.services.results_service import ResultsService
 from src.ui.components.sidebar import render_sidebar
+from src.ui.components.workflow_steps import render_workflow_steps
 from src.utils.config import AppSettings
 from src.utils.i18n import t
 from src.utils.paths import FIXTURES_DIR, job_dir
@@ -24,20 +28,19 @@ st.set_page_config(page_title="Quanta · Results", layout="wide")
 settings = render_sidebar(AppSettings.load())
 lang = settings.language
 st.title(t("nav_results", lang))
+st.caption(t("results_dscf_caption", lang))
 
 jobs = JobService().list_jobs()
 results = ResultsService()
 
-st.subheader("Analyze fixture (melanine)")
-if st.button("Curate fixtures/melanine/MELANINE.LOG into a demo job folder"):
-    # Create a synthetic job folder #0-style under jobs/demo_melanine via id import
-    from src.core.models import Compound, Job, JobStatus
-    from src.db.repositories import CompoundRepository, JobRepository
-    from src.utils.paths import job_dir as jd
+st.subheader(t("results_fixture", lang))
+if st.button(t("results_fixture_btn", lang)):
     import shutil
 
     crepo = CompoundRepository()
     jrepo = JobRepository()
+    js = JobService()
+
     cid = crepo.add(
         Compound(
             id=None,
@@ -51,26 +54,25 @@ if st.button("Curate fixtures/melanine/MELANINE.LOG into a demo job folder"):
             meta_json={"elements": {"C": 3, "N": 6, "H": 6}},
         )
     )
-    jid = jrepo.add(
-        Job(
-            id=None,
-            compound_id=cid,
-            name="melanine_fixture",
-            status=JobStatus.COMPLETED,
-            route="opt b3lyp/6-31g(d) pop=full",
-            nproc=4,
-            mem_mb=1500,
-        )
-    )
-    d = jd(jid)
-    shutil.copy2(FIXTURES_DIR / "melanine" / "MELANINE.LOG", d / "raw" / "MELANINE.LOG")
+    jid = js.create_job(cid, settings, name="melanine_fixture")
+    d = job_dir(jid)
+    shutil.copy2(FIXTURES_DIR / "melanine" / "MELANINE.LOG", d / "raw" / f"job_{jid}_01_opt.log")
     shutil.copy2(FIXTURES_DIR / "melanine" / "melanine.gjf", d / "input" / "melanine.gjf")
-    summary = results.curate_job(jid, settings)
-    st.success(f"Curated fixture as job #{jid} with {len(summary['core_levels'])} core levels")
+    steps = js.get_steps(jid)
+    for step in steps:
+        if step.key == "opt":
+            step.status = StepStatus.COMPLETED
+            step.energy_ha = -493.0
+    js.save_steps(jid, steps)
+    job = jrepo.get(jid)
+    if job:
+        job.status = JobStatus.QUEUED
+        jrepo.update(job)
+    st.info(t("results_fixture_note", lang).format(job_id=jid))
     st.session_state.selected_job_id = jid
 
 if not jobs:
-    st.info("No jobs in DB yet. Curate the melanine fixture above or run calculations.")
+    st.info(t("workflow_no_jobs", lang))
 else:
     labels = {f"#{j.id} {j.name} [{j.status.value}]": j.id for j in jobs}
     default_ix = 0
@@ -83,37 +85,46 @@ else:
     choice = st.selectbox("Job", list(labels.keys()), index=default_ix)
     jid = labels[choice]
 
-    if st.button("Re-curate / analyze log"):
+    job_svc = JobService()
+    steps = job_svc.get_steps(jid)
+    if steps:
+        st.subheader(t("workflow_title", lang))
+        render_workflow_steps(steps, lang=lang, expanded=False)
+
+    if st.button(t("results_recurate", lang)):
         try:
             summary = results.curate_job(jid, settings)
-            st.success(f"Analyzed: {len(summary.get('core_levels', []))} core levels")
+            st.success(t("results_curated", lang).format(n=len(summary.get("core_levels", []))))
         except Exception as exc:
             st.error(str(exc))
 
     summary = results.load_summary(jid)
     if not summary:
-        st.warning("No curated summary yet — click analyze.")
+        st.warning(t("results_no_summary", lang))
     else:
+        if summary.get("protocol") == "dscf":
+            e0 = summary.get("e0_ha")
+            if e0 is not None:
+                st.metric("E₀ (Ha)", f"{e0:.8f}")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("HOMO (eV)", f"{summary.get('homo_ev'):.3f}" if summary.get("homo_ev") is not None else "—")
         m2.metric("LUMO (eV)", f"{summary.get('lumo_ev'):.3f}" if summary.get("lumo_ev") is not None else "—")
         m3.metric("Gap (eV)", f"{summary.get('gap_ev'):.3f}" if summary.get("gap_ev") is not None else "—")
-        m4.metric("OPT steps", summary.get("opt_steps"))
-
-        scf = summary.get("scf_energies_ha") or []
-        if scf:
-            st.subheader("SCF energy history")
-            st.line_chart(pd.DataFrame({"SCF_ha": scf}))
+        m4.metric("Core-hole jobs", summary.get("n_corehole_jobs", "—"))
 
         cores = pd.DataFrame(summary.get("core_levels") or [])
         if not cores.empty:
-            st.subheader("Core levels (C/N/O)")
+            st.subheader(t("results_core_levels", lang))
             st.dataframe(cores, use_container_width=True)
             csv_path = job_dir(jid) / "curated" / "core_levels.csv"
             if csv_path.exists():
-                st.download_button("Download core_levels.csv", csv_path.read_bytes(), file_name="core_levels.csv")
+                st.download_button(
+                    "core_levels.csv",
+                    csv_path.read_bytes(),
+                    file_name="core_levels.csv",
+                )
 
-        st.subheader("Simulated XPS (Voigt)")
+        st.subheader(t("results_spectra", lang))
         for element in ("C", "N", "O"):
             spec = job_dir(jid) / "curated" / f"xps_{element}1s.csv"
             if not spec.exists():
@@ -122,7 +133,7 @@ else:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=df["binding_ev"], y=df["intensity"], mode="lines", name=f"{element}1s"))
             fig.update_layout(
-                title=f"{element}1s",
+                title=f"{element}1s (ΔSCF + Voigt)",
                 xaxis_title="Binding energy (eV)",
                 yaxis_title="Intensity (a.u.)",
                 xaxis_autorange="reversed",

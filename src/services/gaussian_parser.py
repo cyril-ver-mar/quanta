@@ -95,6 +95,13 @@ def parse_gaussian_log(path: Path | str) -> ParseResult:
     return result
 
 
+def final_scf_energy_ha(result: ParseResult) -> float | None:
+    """Last SCF Done energy in the log (Ha)."""
+    if not result.scf_energies_ha:
+        return None
+    return result.scf_energies_ha[-1]
+
+
 def estimate_eta_seconds(result: ParseResult, elapsed_s: float) -> float | None:
     p = result.progress_estimate
     if p <= 0.05 or elapsed_s <= 0:

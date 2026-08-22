@@ -39,15 +39,15 @@ st.caption(t("app_tagline", settings.language))
 
 st.markdown(
     """
-### Workflow
-1. **Settings** — Gaussian path, memory, XPS correction options  
+### Workflow (ΔSCF XPS)
+1. **Settings** — Gaussian path, PBE/B3LYP, Voigt FWHM, C1s reference  
 2. **Compounds** — upload mol2 / pdb / sdf (RDKit)  
 3. **Work review** — 3D structure preview before calculations  
-4. **Jobs** — create OPT B3LYP/6-31G(d) `pop=full` jobs  
-5. **Queue** — run one-by-one on Windows (disabled on Mac without `g09`)  
-6. **Results** — SCF/OPT plots, HOMO–LUMO, C/N/O XPS  
+4. **Jobs** — create a multi-step ΔSCF workflow (see step guide)  
+5. **Queue** — run steps one-by-one on Windows (disabled on Mac without `g09`)  
+6. **Results** — ΔSCF binding energies and C/N/O spectra  
 7. **Archive** — export zip on Windows → import on Mac for analysis  
 
-Reference method: Yamada & Sato, *TANSO* 2015 (see `EXample_XPS.pdf`).
+**Method:** gas-phase ΔSCF in Gaussian 09 — OPT → neutral SP (E₀) → core-hole SP per atom (BE = ΔE).
 """
 )

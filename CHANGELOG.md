@@ -5,6 +5,21 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-08-22
+
+### Added
+- **ΔSCF XPS workflow** (gas phase, Gaussian 09): OPT → neutral SP (E₀) → core-hole SP per C/N/O atom (`Guess=Alter`).
+- Step-by-step workflow UI on Jobs, Queue, and Results (EN/RU).
+- Work Review page with 3D structure preview (py3Dmol).
+- Settings: PBE/B3LYP functional, basis, Voigt FWHM, optional C1s shift.
+
+### Changed
+- Replaced Yamada orbital-energy XPS pipeline with ΔSCF binding energies (BE = ΔE).
+- Job runner executes multi-step workflows sequentially; results curation from core-hole logs.
+
+### Notes
+- Yamada implementation preserved at git tag/commit baseline `yamada_end`.
+
 ## [1.0.0] — 2026-08-10
 
 ### Added

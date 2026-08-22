@@ -17,11 +17,15 @@ class AppSettings:
     nproc: int = 4
     mem_mb: int = 1500
     language: str = "en"
-    xps_scale: float = 1.024
-    xps_c1s_ref_ev: float = 284.3
+    # ΔSCF XPS (gas phase)
+    dscf_functional: str = "pbe"
+    dscf_basis: str = "6-31g(d)"
     xps_fwhm_ev: float = 1.2
+    xps_c1s_ref_ev: float = 284.3
+    dscf_apply_c1s_shift: bool = True
+    # Legacy Yamada keys (ignored if present in old settings.json)
+    xps_scale: float = 1.024
     xps_apply_linear_map: bool = False
-    # Yamada linear maps (correction 3): y = slope * x (relative eV)
     xps_c1s_slope: float = 0.74
     xps_o1s_slope: float = 0.96
     xps_n1s_slope: float = 1.5

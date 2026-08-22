@@ -14,7 +14,7 @@
 | Secrets / paths | User-editable in Settings (Gaussian path, work/scratch dirs); optional `.streamlit/secrets.toml` later |
 | UI language | EN / RU |
 | Engine v1 | Gaussian 09 only (ORCA post-v1) |
-| XPS method | Yamada & Sato, TANSO 2015 (`EXample_XPS.pdf`): OPT B3LYP/6-31G(d), `pop=full`, `int=ultrafine`; core MO → BE; scale ≈1.024; shift C1s ref → 284.3 eV; optional linear maps; Voigt FWHM ≈1.2 eV |
+| XPS method | Gas-phase **ΔSCF** in Gaussian 09: OPT → neutral SP (E₀) → UKS core-hole SP per C/N/O (`Guess=Alter`); BE = ΔE; optional C1s shift → 284.3 eV; Voigt FWHM ≈1.2 eV. Yamada (TANSO 2015) retired at tag `yamada_end`. |
 | Inputs | mol2 / pdb / sdf via RDKit; charge & multiplicity editable |
 | Resources default | `%mem=1500MB`, `%nprocshared=4`, one job at a time |
 | Platforms | Windows: run + analyze; Mac: analyze + archive import only |
