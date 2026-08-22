@@ -122,7 +122,18 @@ def main() -> None:
     if not github_repo.is_file():
         github_repo = ROOT / "GITHUB_REPO.example"
     if github_repo.is_file():
-        shutil.copy2(github_repo, OUT / "GITHUB_REPO")
+        repo_line = ""
+        for line in github_repo.read_text(encoding="utf-8").splitlines():
+            text = line.strip()
+            if not text or text.startswith("#"):
+                continue
+            if text.endswith(".git"):
+                text = text[:-4]
+            if "/" in text and " " not in text:
+                repo_line = text
+                break
+        if repo_line:
+            (OUT / "GITHUB_REPO").write_text(f"{repo_line}\n", encoding="utf-8")
 
     runtime_req = ROOT / "requirements-runtime.txt"
     if runtime_req.is_file():

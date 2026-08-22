@@ -5,6 +5,15 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.6] — 2026-08-22
+
+### Fixed
+- **GitHub update check** — parse `GITHUB_REPO` skipping `#` comment lines; handle UTF-8 BOM; ship one-line `GITHUB_REPO` in standalone.
+- **Settings → Updates** — always re-reads config (no stale session cache after editing `GITHUB_REPO`); shows file path when misconfigured.
+
+### Added
+- Root **`GITHUB_REPO`** committed (`cyril-ver-mar/quanta`) so dev installs resolve updates out of the box.
+
 ## [1.0.5] — 2026-08-22
 
 ### Added

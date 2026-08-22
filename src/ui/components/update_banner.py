@@ -19,8 +19,10 @@ from src.utils.github_updates import (
     ERR_UNEXPECTED,
     UpdateStatus,
     check_for_update,
+    resolve_github_repo,
 )
 from src.utils.i18n import t
+from src.utils.paths import ROOT
 from src.utils.version import get_version
 
 logger = logging.getLogger(__name__)
@@ -55,11 +57,12 @@ def _status_error_text(status: UpdateStatus, lang: str) -> str | None:
     )
 
 
-def _ensure_checked() -> UpdateStatus:
+def _ensure_checked(*, force: bool = False) -> UpdateStatus:
     """Run network check once per Streamlit session (every app launch)."""
-    cached = st.session_state.get(_SESSION_STATUS)
-    if isinstance(cached, UpdateStatus):
-        return cached
+    if not force:
+        cached = st.session_state.get(_SESSION_STATUS)
+        if isinstance(cached, UpdateStatus):
+            return cached
     try:
         status = check_for_update(local_version=get_version())
     except Exception as exc:  # noqa: BLE001 — never block UI on updater
@@ -145,7 +148,22 @@ def render_update_banner(lang: str) -> None:
 def render_update_settings(lang: str) -> None:
     """Settings section: status + force re-check."""
     st.subheader(t("update_section", lang))
-    status = _ensure_checked()
+    # Always fresh read here — user may have just edited GITHUB_REPO on disk.
+    status = _ensure_checked(force=True)
+    repo_path = ROOT / "GITHUB_REPO"
+    if status.error_code == ERR_NOT_CONFIGURED:
+        st.caption(f"`{repo_path}` — exists: **{repo_path.is_file()}**")
+        resolved = resolve_github_repo()
+        if repo_path.is_file() and resolved is None:
+            st.warning(
+                "GITHUB_REPO was found but no valid `owner/name` line was parsed. "
+                "Use one line like `cyril-ver-mar/quanta` (comments with `#` are OK on other lines)."
+            )
+        elif not repo_path.is_file():
+            st.warning(
+                f"Create `{repo_path.name}` in the app folder (next to `app.py`) "
+                "with one line: `cyril-ver-mar/quanta`"
+            )
     fail_text = _status_error_text(status, lang)
     if fail_text:
         st.warning(fail_text)

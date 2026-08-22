@@ -82,6 +82,20 @@ def _normalize_repo(raw: str) -> Optional[str]:
     return None
 
 
+def _read_repo_file(repo_file: Path) -> Optional[str]:
+    """Return first valid ``owner/name`` from a GITHUB_REPO file (skip comments)."""
+    try:
+        text = repo_file.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        logger.warning("Could not read GITHUB_REPO: %s", exc)
+        return None
+    for line in text.splitlines():
+        parsed = _normalize_repo(line)
+        if parsed:
+            return parsed
+    return None
+
+
 def resolve_github_repo(root: Optional[Path] = None) -> Optional[str]:
     """Return ``owner/name`` or None when not configured."""
     env = _normalize_repo(os.environ.get("QUANTA_GITHUB_REPO", ""))
@@ -91,14 +105,9 @@ def resolve_github_repo(root: Optional[Path] = None) -> Optional[str]:
     base = root or ROOT
     repo_file = base / "GITHUB_REPO"
     if repo_file.is_file():
-        try:
-            line = repo_file.read_text(encoding="utf-8").splitlines()[0]
-        except OSError as exc:
-            logger.warning("Could not read GITHUB_REPO: %s", exc)
-        else:
-            parsed = _normalize_repo(line)
-            if parsed:
-                return parsed
+        parsed = _read_repo_file(repo_file)
+        if parsed:
+            return parsed
 
     try:
         out = subprocess.check_output(

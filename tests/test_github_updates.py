@@ -53,6 +53,15 @@ def test_resolve_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert resolve_github_repo(tmp_path) == "acme/demo-app"
 
 
+def test_resolve_skips_comment_lines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("QUANTA_GITHUB_REPO", raising=False)
+    (tmp_path / "GITHUB_REPO").write_text(
+        "# comment\n# another\nacme/from-comments\n",
+        encoding="utf-8",
+    )
+    assert resolve_github_repo(tmp_path) == "acme/from-comments"
+
+
 def test_pick_zip_prefers_standalone() -> None:
     assets = [
         {"name": "source.zip", "browser_download_url": "https://example/a.zip"},
