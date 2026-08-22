@@ -5,6 +5,13 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.4] — 2026-08-22
+
+### Fixed
+- **Windows double-click install** — single-window `.bat` (no `cmd /k` spawn); `cd /d "%~dp0"` first; visible `pause` at end.
+- Bootstrap `.ps1` — TLS 1.2 for GitHub; errors show “Press Enter to close”; requires `.ps1` beside `.bat`.
+- Added `install_quanta.cmd` duplicate launcher for Explorer.
+
 ## [1.0.3] — 2026-08-22
 
 ### Added

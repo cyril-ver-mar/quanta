@@ -1,7 +1,28 @@
 # Quanta Windows bootstrapper (ASCII / PS 5.1 safe)
-# Prefer running via: .\install_quanta.bat
+# Run via: install_quanta.bat  (same folder as this file)
 
 $ErrorActionPreference = "Stop"
+
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+} catch { }
+
+function Fail-Install {
+    param([string]$Msg)
+    Write-Host ""
+    Write-Host "  ERROR: $Msg"
+    Write-Host ""
+    Read-Host "  Press Enter to close"
+    exit 1
+}
+
+trap {
+    Fail-Install $_.Exception.Message
+}
+
+if ($env:QUANTA_INSTALL_DIR -and (Test-Path $env:QUANTA_INSTALL_DIR)) {
+    Set-Location $env:QUANTA_INSTALL_DIR
+}
 
 $Repo = "cyril-ver-mar/quanta"
 if ($env:QUANTA_GITHUB_REPO) { $Repo = $env:QUANTA_GITHUB_REPO }
@@ -169,8 +190,7 @@ try {
     $Dl = Resolve-Download -Repo $Repo -Headers $Headers
 } catch {
     Write-Info ""
-    Write-Info ("  ERROR: " + $_.Exception.Message)
-    exit 1
+    Fail-Install $_.Exception.Message
 }
 
 Write-Info ("  OK " + $Dl.Source + ": " + $Dl.Tag)
@@ -253,3 +273,4 @@ Write-Info "  Browser: http://localhost:8501"
 Write-Info ""
 Write-Info "  OK Bootstrap finished."
 Write-Info ""
+Read-Host "  Press Enter to close"

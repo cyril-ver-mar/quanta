@@ -1,6 +1,7 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
+title Quanta Install
+setlocal EnableExtensions EnableDelayedExpansion
 
 for /f "delims=" %%A in ('echo prompt $E^| cmd') do set "ESC=%%A"
 set "C_ACCENT=%ESC%[38;2;217;119;87m"
