@@ -79,8 +79,10 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "results_chong_ok": "Imported: {names}. Open Jobs to create ΔSCF workflows.",
         "results_recurate": "Re-analyze logs → XPS tables",
         "results_no_summary": "No curated summary yet — finish all workflow steps or click Re-analyze.",
+        "results_be_looks_valence": "Raw binding energies look too low for 1s XPS (< 50 eV). The core hole may still be valence — restart core-hole steps so Guess=Alter uses n_occ vacancy.",
         "results_curated": "Curated {n} ΔSCF peaks",
         "results_core_levels": "Per-atom binding energies",
+        "results_no_core_levels": "No core-level binding energies were curated. Re-analyze after core-hole logs finish, or check skipped steps below.",
         "results_spectra": "Simulated spectra",
         "results_profile": "Peak profile",
         "results_profile_gaussian": "Gaussian",
@@ -145,6 +147,7 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "update_working": "Downloading and installing…",
         "update_installed": "Update installed. Please stop and restart the app.",
         "update_restart_hint": "Close the terminal or stop Streamlit, then run again.",
+        "update_secrets_missing": "SECRETS file is missing after update. Copy SECRETS.example → SECRETS next to app.py and add your GitHub token.",
         "update_failed": "Update failed: {err}",
         "update_no_zip": (
             "This release has no downloadable zip — open the release page and download manually."
@@ -286,6 +289,7 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
         "results_lumo": "LUMO (eV)",
         "results_gap": "Gap (eV)",
         "results_n_corehole": "Core-hole jobs",
+        "results_no_core_levels": "No core-level binding energies were curated. Re-analyze after core-hole logs finish, or check skipped steps below.",
         "results_dl_core_csv": "core_levels.csv",
         "results_spectrum_title": "{element}1s (ΔSCF + Voigt)",
         "results_be_axis": "Binding energy (eV)",
@@ -410,8 +414,10 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "results_chong_ok": "Импортировано: {names}. Создайте ΔSCF на странице Jobs.",
         "results_recurate": "Пересобрать таблицы XPS",
         "results_no_summary": "Нет summary — завершите workflow или нажмите Пересобрать.",
+        "results_be_looks_valence": "Сырые энергии связи слишком низкие для 1s XPS (< 50 эВ). Дырка может быть валентной — перезапустите core-hole шаги, чтобы Guess=Alter использовал вакансию n_occ.",
         "results_curated": "Собрано пиков ΔSCF: {n}",
         "results_core_levels": "BE по атомам",
+        "results_no_core_levels": "Энергии связи остовных уровней не сформированы. Повторите анализ после завершения core-hole логов или проверьте пропущенные шаги ниже.",
         "results_spectra": "Симулированные спектры",
         "results_profile": "Профиль пика",
         "results_profile_gaussian": "Гаусс",
@@ -476,6 +482,7 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "update_working": "Скачивание и установка…",
         "update_installed": "Обновление установлено. Остановите и перезапустите приложение.",
         "update_restart_hint": "Закройте терминал или остановите Streamlit, затем запустите снова.",
+        "update_secrets_missing": "Файл SECRETS отсутствует после обновления. Скопируйте SECRETS.example → SECRETS рядом с app.py и добавьте GitHub-токен.",
         "update_failed": "Ошибка обновления: {err}",
         "update_no_zip": (
             "У этого релиза нет скачиваемого zip — откройте страницу релиза и скачайте вручную."
@@ -617,6 +624,7 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "results_lumo": "LUMO (эВ)",
         "results_gap": "Щель (эВ)",
         "results_n_corehole": "Core-hole задачи",
+        "results_no_core_levels": "Энергии связи остовных уровней не сформированы. Повторите анализ после завершения core-hole логов или проверьте пропущенные шаги ниже.",
         "results_dl_core_csv": "core_levels.csv",
         "results_spectrum_title": "{element}1s (ΔSCF + Voigt)",
         "results_be_axis": "Энергия связи (эВ)",

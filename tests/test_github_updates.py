@@ -103,6 +103,30 @@ def test_apply_preserves_data(tmp_path: Path) -> None:
     assert (app / "src" / "marker.txt").is_file()
 
 
+def test_apply_preserves_secrets_even_if_zip_has_secrets(tmp_path: Path) -> None:
+    """Zip entry ``secrets`` must not wipe local ``SECRETS`` (Windows case-fold)."""
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "VERSION").write_text("1.0.22\n", encoding="utf-8")
+    (app / "app.py").write_text("OLD\n", encoding="utf-8")
+    secret_body = b"GITHUB_TOKEN=keep-me\n"
+    (app / "SECRETS").write_bytes(secret_body)
+
+    payload = tmp_path / "upd.zip"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("Quanta/VERSION", "1.0.23\n")
+        zf.writestr("Quanta/app.py", "NEW\n")
+        zf.writestr("Quanta/secrets", "GITHUB_TOKEN=from-zip-should-not-win\n")
+        zf.writestr("Quanta/SECRETS.example", "# example only\n")
+    payload.write_bytes(buf.getvalue())
+
+    apply_standalone_zip(payload, app_root=app)
+    assert (app / "SECRETS").read_bytes() == secret_body
+    assert (app / "app.py").read_text(encoding="utf-8").strip() == "NEW"
+    assert (app / "SECRETS.example").is_file()
+
+
 def test_classify_network_timeout_ssl_http() -> None:
     code, _ = classify_github_error(urllib.error.URLError("Name or service not known"))
     assert code == ERR_NETWORK

@@ -45,6 +45,27 @@ class ResultsService:
             apply_c1s_shift=settings.dscf_apply_c1s_shift,
         )
 
+    def _resolve_step_log(self, job_id: int, log_name: str, gaussian_cwd: str | None) -> Path | None:
+        """Prefer job raw/, then Gaussian work dir (case-insensitive stem match)."""
+        jdir = job_dir(job_id)
+        raw = jdir / "raw" / log_name
+        if raw.is_file() and raw.stat().st_size > 0:
+            return raw
+        # Case variants on Windows
+        stem = Path(log_name).stem
+        for pat in (f"{stem}.log", f"{stem}.LOG", f"{stem}.out", f"{stem}.OUT"):
+            cand = jdir / "raw" / pat
+            if cand.is_file() and cand.stat().st_size > 0:
+                return cand
+        if gaussian_cwd:
+            cwd = Path(gaussian_cwd)
+            if cwd.is_dir():
+                for pat in (f"{stem}.log", f"{stem}.LOG", f"{stem}.out", f"{stem}.OUT"):
+                    cand = cwd / pat
+                    if cand.is_file() and cand.stat().st_size > 0:
+                        return cand
+        return None
+
     def curate_job(self, job_id: int, settings: AppSettings) -> dict:
         job = self.jobs.get(job_id)
         if job is None:
@@ -55,27 +76,52 @@ class ResultsService:
         if neutral is None:
             raise ValueError("Not a ΔSCF workflow job")
 
-        neutral_log = job_dir(job_id) / "raw" / neutral.log_name
-        if not neutral_log.exists():
-            raise FileNotFoundError(f"Neutral SP log missing: {neutral_log}")
+        gauss_cwd = (job.meta_json or {}).get("gaussian_cwd")
+        neutral_log = self._resolve_step_log(job_id, neutral.log_name, gauss_cwd)
+        if neutral_log is None:
+            raise FileNotFoundError(f"Neutral SP log missing: {neutral.log_name}")
 
         neutral_parsed = parse_gaussian_log(neutral_log)
         e0 = final_scf_energy_ha(neutral_parsed)
+        if e0 is None and neutral.energy_ha is not None:
+            e0 = float(neutral.energy_ha)
         if e0 is None:
             raise ValueError("Could not read E₀ from neutral SP log")
 
         corehole_data: list[tuple[int, str, float]] = []
+        skipped: list[str] = []
         for step in steps:
-            if step.kind != StepKind.COREHOLE_SP or step.status != StepStatus.COMPLETED:
+            if step.kind != StepKind.COREHOLE_SP:
                 continue
-            log_path = job_dir(job_id) / "raw" / step.log_name
-            if not log_path.exists():
+            if step.status != StepStatus.COMPLETED:
+                skipped.append(f"{step.key}: status={step.status.value}")
                 continue
-            parsed = parse_gaussian_log(log_path)
-            e_i = final_scf_energy_ha(parsed)
-            if e_i is None or step.atom_index is None or step.element is None:
+            if step.atom_index is None or step.element is None:
+                skipped.append(f"{step.key}: missing atom map")
+                continue
+
+            e_i: float | None = None
+            log_path = self._resolve_step_log(job_id, step.log_name, gauss_cwd)
+            if log_path is not None:
+                parsed = parse_gaussian_log(log_path)
+                e_i = final_scf_energy_ha(parsed)
+            if e_i is None and step.energy_ha is not None:
+                e_i = float(step.energy_ha)
+            if e_i is None:
+                skipped.append(
+                    f"{step.key}: no SCF energy "
+                    f"(log={'missing' if log_path is None else log_path.name})"
+                )
                 continue
             corehole_data.append((step.atom_index, step.element, e_i))
+
+        if skipped:
+            logger.warning(
+                "Job %s curation skipped %d core-hole step(s): %s",
+                job_id,
+                len(skipped),
+                "; ".join(skipped),
+            )
 
         dscf = self._dscf_settings(settings)
         levels = compute_binding_energies(
@@ -86,15 +132,22 @@ class ResultsService:
         )
 
         opt = next((s for s in steps if s.kind == StepKind.OPT), None)
-        opt_log = job_dir(job_id) / "raw" / opt.log_name if opt else None
+        opt_log = (
+            self._resolve_step_log(job_id, opt.log_name, gauss_cwd) if opt else None
+        )
         homo_ev = lumo_ev = gap_ev = None
         opt_steps = None
-        if opt_log and opt_log.exists():
+        if opt_log is not None:
             opt_parsed = parse_gaussian_log(opt_log)
             homo_ev = opt_parsed.homo_ev
             lumo_ev = opt_parsed.lumo_ev
             gap_ev = opt_parsed.gap_ev
             opt_steps = opt_parsed.opt_steps
+        # Neutral SP usually has Pop eigenvalues; fall back if OPT has none
+        if homo_ev is None:
+            homo_ev = neutral_parsed.homo_ev
+            lumo_ev = neutral_parsed.lumo_ev
+            gap_ev = neutral_parsed.gap_ev
 
         jdir = job_dir(job_id)
         curated = jdir / "curated"
@@ -111,6 +164,7 @@ class ResultsService:
             "lumo_ev": lumo_ev,
             "gap_ev": gap_ev,
             "n_corehole_jobs": len(corehole_data),
+            "curation_skipped": skipped,
             "core_levels": [
                 {
                     "element": lv.element,

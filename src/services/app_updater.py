@@ -15,6 +15,7 @@ from src.utils.paths import ROOT
 
 logger = logging.getLogger(__name__)
 
+# Top-level names that must survive an in-app update (case-insensitive match).
 PRESERVE_TOP_LEVEL = frozenset(
     {
         "data",
@@ -28,6 +29,63 @@ PRESERVE_TOP_LEVEL = frozenset(
         ".env",
     }
 )
+
+# Always snapshot/restore these files even if merge logic changes.
+_CRITICAL_FILE_BACKUPS = frozenset({"SECRETS", ".env"})
+
+
+def _preserve_keyset(names: Iterable[str]) -> set[str]:
+    return {n.lower() for n in names}
+
+
+def _is_preserved(name: str, keep_lower: set[str]) -> bool:
+    return name.lower() in keep_lower
+
+
+def _snapshot_critical_files(target: Path, keep_lower: set[str]) -> dict[str, bytes]:
+    """Backup critical preserved files before merge (keyed by lowercased name)."""
+    snaps: dict[str, bytes] = {}
+    critical_lower = {n.lower() for n in _CRITICAL_FILE_BACKUPS}
+    try:
+        entries = list(target.iterdir())
+    except OSError:
+        entries = []
+    for path in entries:
+        if not path.is_file():
+            continue
+        key = path.name.lower()
+        if key not in keep_lower or key not in critical_lower:
+            continue
+        try:
+            snaps[key] = path.read_bytes()
+        except OSError as exc:
+            logger.warning("Could not backup %s before update: %s", path.name, exc)
+    for canon in _CRITICAL_FILE_BACKUPS:
+        path = target / canon
+        if path.is_file() and canon.lower() not in snaps:
+            try:
+                snaps[canon.lower()] = path.read_bytes()
+            except OSError as exc:
+                logger.warning("Could not backup %s before update: %s", canon, exc)
+    return snaps
+
+
+def _restore_critical_files(target: Path, snaps: dict[str, bytes]) -> None:
+    """Put SECRETS / .env back if missing or altered by a bad merge."""
+    for key, payload in snaps.items():
+        if key == "secrets":
+            dest = target / "SECRETS"
+        elif key == ".env":
+            dest = target / ".env"
+        else:
+            dest = target / key
+        try:
+            if dest.is_file() and dest.read_bytes() == payload:
+                continue
+            dest.write_bytes(payload)
+            logger.info("Restored preserved file after update: %s", dest.name)
+        except OSError as exc:
+            logger.error("Failed to restore %s after update: %s", dest, exc)
 
 
 def _find_app_root(extracted: Path) -> Path:
@@ -63,12 +121,18 @@ def apply_standalone_zip(
     app_root: Optional[Path] = None,
     preserve: Optional[Iterable[str]] = None,
 ) -> Path:
-    """Unpack ``zip_path`` over ``app_root``, preserving local data/venv.
+    """Unpack ``zip_path`` over ``app_root``, preserving local data/venv/SECRETS.
+
+    Matching of preserved names is **case-insensitive** so a zip entry named
+    ``secrets`` cannot delete ``SECRETS`` on Windows. Critical files are also
+    snapshotted and restored after the merge.
 
     Returns the app root that was updated.
     """
     target = (app_root or ROOT).resolve()
     keep = set(preserve) if preserve is not None else set(PRESERVE_TOP_LEVEL)
+    keep_lower = _preserve_keyset(keep)
+    snaps = _snapshot_critical_files(target, keep_lower)
 
     with tempfile.TemporaryDirectory(prefix="quanta_upd_") as tmp:
         tmp_path = Path(tmp)
@@ -80,8 +144,26 @@ def apply_standalone_zip(
 
         for item in source.iterdir():
             name = item.name
-            if name in keep:
+            if _is_preserved(name, keep_lower):
+                logger.debug("Skipping preserved top-level entry: %s", name)
                 continue
+            # Refuse to clobber a preserved local path under case-insensitive FS
+            skip = False
+            try:
+                for local in target.iterdir():
+                    if local.name.lower() != name.lower():
+                        continue
+                    if _is_preserved(local.name, keep_lower):
+                        skip = True
+                        break
+            except OSError:
+                pass
+            if skip:
+                logger.warning(
+                    "Refusing to replace preserved local path with zip entry %r", name
+                )
+                continue
+
             dest = target / name
             if dest.exists() or dest.is_symlink():
                 if dest.is_dir() and not dest.is_symlink():
@@ -93,6 +175,7 @@ def apply_standalone_zip(
             else:
                 shutil.copy2(item, dest)
 
+    _restore_critical_files(target, snaps)
     logger.info("Applied update zip into %s", target)
     return target
 

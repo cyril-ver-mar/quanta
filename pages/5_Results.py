@@ -101,6 +101,18 @@ else:
                     csv_path.read_bytes(),
                     file_name="core_levels.csv",
                 )
+            raw_bes = [
+                float(x)
+                for x in cores["be_raw_ev"].tolist()
+                if x is not None and str(x) != "nan"
+            ]
+            if raw_bes and max(raw_bes) < 50.0:
+                st.warning(t("results_be_looks_valence", lang))
+        else:
+            skipped = summary.get("curation_skipped") or []
+            st.warning(t("results_no_core_levels", lang))
+            if skipped:
+                st.caption("; ".join(str(s) for s in skipped[:12]))
 
         job_obj = job_svc.get(jid)
         compound_name = None

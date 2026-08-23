@@ -9,7 +9,11 @@ from pathlib import Path
 from src.core.models import Orbital
 
 # Method labels may include hyphens: E(RPBE-PBE), E(UPBE-PBE), E(RB3LYP), …
-SCF_RE = re.compile(r"SCF Done:\s+E\(([^)]+)\)\s*=\s*([-\d.]+)", re.I)
+# Energies may be fixed-point or Fortran D/E scientific: -0.79D+02
+SCF_RE = re.compile(
+    r"SCF Done:\s+E\(([^)]+)\)\s*=\s*([-+]?\d*\.?\d+(?:[DdEe][+-]?\d+)?)",
+    re.I,
+)
 OPT_RE = re.compile(r"Optimized Parameters", re.I)
 NORMAL_RE = re.compile(r"Normal termination of Gaussian", re.I)
 ERROR_RE = re.compile(r"Error termination", re.I)
@@ -86,12 +90,17 @@ def extract_error_snippets(text: str, *, context: int = 4, max_snippets: int = 6
     return snippets
 
 
+def _parse_ha_token(token: str) -> float:
+    """Parse a Hartree token (plain or Fortran D/E scientific notation)."""
+    return float(token.replace("D", "E").replace("d", "e"))
+
+
 def _floats(chunk: str) -> list[float]:
     """Parse eigenvalue tokens (plain or scientific notation)."""
     out: list[float] = []
     for tok in chunk.split():
         try:
-            out.append(float(tok.replace("D", "E").replace("d", "e")))
+            out.append(_parse_ha_token(tok))
         except ValueError:
             continue
     return out
@@ -104,7 +113,10 @@ def parse_gaussian_log(path: Path | str) -> ParseResult:
 
     for m in SCF_RE.finditer(text):
         result.method = m.group(1)
-        result.scf_energies_ha.append(float(m.group(2)))
+        try:
+            result.scf_energies_ha.append(_parse_ha_token(m.group(2)))
+        except ValueError:
+            continue
 
     steps = STEP_RE.findall(text)
     result.opt_steps = int(steps[-1]) if steps else len(result.scf_energies_ha)

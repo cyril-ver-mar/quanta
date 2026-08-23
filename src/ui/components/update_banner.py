@@ -90,10 +90,14 @@ def _ensure_checked(*, force: bool = False) -> UpdateStatus:
 
 
 def _apply_update(zip_url: str) -> None:
+    from src.utils.secrets import clear_secrets_cache, secrets_file_exists
+
     download_and_apply(zip_url)
     get_version.cache_clear()
+    clear_secrets_cache()
     st.session_state[_SESSION_DONE] = True
     st.session_state.pop(_SESSION_ERROR, None)
+    st.session_state["_update_secrets_missing"] = not secrets_file_exists()
     clear_update_cache()
     st.session_state[_SESSION_STATUS] = check_for_update(
         local_version=get_version(), use_cache=False
@@ -133,6 +137,8 @@ def render_update_banner(lang: str) -> None:
         if st.session_state.get(_SESSION_DONE):
             st.success(t("update_installed", lang))
             st.caption(t("update_restart_hint", lang))
+            if st.session_state.get("_update_secrets_missing"):
+                st.warning(t("update_secrets_missing", lang))
             if st.button(t("update_dismiss", lang), key="_upd_dlg_done"):
                 st.session_state[_SESSION_DISMISSED] = True
                 st.rerun()
@@ -199,6 +205,12 @@ def render_update_banner(lang: str) -> None:
 def render_update_settings(lang: str) -> None:
     """Settings section: status + force re-check."""
     st.subheader(t("update_section", lang))
+    if st.session_state.get(_SESSION_DONE):
+        st.success(t("update_installed", lang))
+        st.caption(t("update_restart_hint", lang))
+        if st.session_state.get("_update_secrets_missing"):
+            st.warning(t("update_secrets_missing", lang))
+
     status = _ensure_checked()
     repo_path = ROOT / "GITHUB_REPO"
     if status.error_code == ERR_NOT_CONFIGURED:

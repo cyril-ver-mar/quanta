@@ -5,6 +5,15 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+## [1.0.24] — 2026-08-23
+
+### Fixed
+- **Results / ΔSCF BEs** — parse `SCF Done` energies in Fortran `D`/`E` scientific notation (mantissa-only bug made binding energies empty or nonsense); curation finds logs in Gaussian work dir, falls back to stored step energies, and surfaces skipped core-hole steps.
+- **In-app update preserves `SECRETS`** — case-insensitive preserve list plus backup/restore so Windows updates cannot wipe the secrets file; warn if `SECRETS` is missing after install.
+
+### Changed
+- Results warns when raw BEs look too low for 1s XPS (&lt; 50 eV).
+
 ## [1.0.23] — 2026-08-23
 
 ### Fixed
