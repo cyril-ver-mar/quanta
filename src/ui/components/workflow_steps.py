@@ -67,7 +67,10 @@ def render_workflow_steps(steps: list[DscfStep], lang: str = "en", expanded: boo
             c1, c2 = st.columns([1, 3])
             c1.markdown(f"**{t('workflow_status', lang)}**")
             c1.write(step.status.value)
-            if step.energy_ha is not None:
+            if step.energy_ev is not None:
+                c1.markdown(f"**{t('workflow_energy', lang)}**")
+                c1.write(f"{step.energy_ev:.6f} eV")
+            elif step.energy_ha is not None:
                 c1.markdown(f"**{t('workflow_energy', lang)}**")
                 c1.write(f"{step.energy_ha:.8f} Ha")
             c2.markdown(f"**{t('workflow_what', lang)}**")
@@ -79,7 +82,16 @@ def render_workflow_steps(steps: list[DscfStep], lang: str = "en", expanded: boo
                 c2.caption(
                     t("workflow_io_caption", lang, gjf=step.gjf_name, log=step.log_name)
                 )
-            if step.orbital_index and step.homo_index:
+            if step.guess_style == "cards" and step.orbital_index and step.homo_index:
+                c2.caption(
+                    t(
+                        "workflow_cards_caption",
+                        lang,
+                        orbital=step.orbital_index,
+                        homo=step.homo_index,
+                    )
+                )
+            elif step.orbital_index and step.homo_index:
                 c2.caption(
                     t(
                         "workflow_alter_caption",
@@ -88,6 +100,8 @@ def render_workflow_steps(steps: list[DscfStep], lang: str = "en", expanded: boo
                         homo=step.homo_index,
                     )
                 )
+            if step.weight and step.weight > 1:
+                c2.caption(t("workflow_site_weight", lang, n=step.weight))
             if step.error:
                 st.error(step.error)
 

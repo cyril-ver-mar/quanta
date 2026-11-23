@@ -63,7 +63,9 @@ Each XPS workflow is a **sequence of Gaussian 09 jobs** for one gas-phase molecu
 | **2** | Neutral `SP` | Total energy **E₀**; `pop=full` maps 1s orbitals to atoms |
 | **3…N** | Core-hole `SP` | UKS + `Guess=Alter` — remove one 1s electron per C/N/O atom |
 
-**Binding energy:** BE = (E_core-hole − E₀) × 27.211 eV. Optional shift aligns mean C1s to 284.3 eV.
+**Binding energy:** BE = (E_core-hole − E₀) × 27.211 eV. Choose an absolute value, one calibration shift, or a per-element reference in Settings.
+
+**Periodic structures** (CIF / POSCAR / extxyz, for example layered C₇N) use the GPAW engine: neutral cell by default, one core hole per symmetry-inequivalent site. Gaussian stays the engine for molecules.
 
 **Before you start:** set charge & multiplicity on Compounds; confirm 3D geometry in Work review; configure PBE/B3LYP in Settings.
 """,
@@ -315,6 +317,43 @@ to analyze without Gaussian.
         "settings_basis": "Basis set",
         "settings_fwhm": "Voigt FWHM (eV)",
         "settings_c1s_ref": "C1s reference (eV)",
+        "settings_n1s_ref": "N1s reference (eV)",
+        "settings_o1s_ref": "O1s reference (eV)",
+        "settings_engine": "XPS engine",
+        "settings_engine_gaussian": "Gaussian 09 — molecules",
+        "settings_engine_gpaw": "GPAW — periodic structures",
+        "settings_engine_hint": "Gaussian is the gas-phase ΔSCF path. GPAW is for CIF / POSCAR / extxyz cells (for example layered C7N).",
+        "settings_reference": "Binding-energy reference",
+        "settings_reference_mode": "Reference mode",
+        "settings_reference_absolute": "Absolute ΔSCF (no shift)",
+        "settings_reference_global": "One calibration shift (chosen element → reference)",
+        "settings_reference_per_element": "Per-element references (within-element shifts only)",
+        "settings_reference_fermi": "Fermi level (periodic)",
+        "settings_reference_vbm": "Valence-band maximum (periodic)",
+        "settings_reference_element": "Element used for the single calibration shift",
+        "settings_reference_help": "Absolute keeps the raw ΔSCF value. A global shift moves every peak by the same amount. Per-element shifts each element onto its own reference and replaces the gaps between elements. Fermi and VBM are for GPAW.",
+        "settings_gpaw": "GPAW (periodic)",
+        "settings_gpaw_hint": "Plane-wave cutoff, k-points and the supercell must be converged. Smearing defaults to 0.1 eV (GPAW’s periodic default). The default charge mode is neutral: the core electron goes into the conduction band.",
+        "settings_gpaw_xc": "XC functional",
+        "settings_gpaw_cutoff": "Plane-wave cutoff (eV)",
+        "settings_gpaw_smearing": "Fermi–Dirac smearing (eV)",
+        "settings_gpaw_kpts": "k-points (n1,n2,n3)",
+        "settings_gpaw_supercell": "Supercell (n1,n2,n3)",
+        "settings_gpaw_charge_mode": "Core-hole charge",
+        "settings_gpaw_charge_neutral": "Neutral cell (extra electron in the conduction band)",
+        "settings_gpaw_charge_charged": "Charged cell (electron removed)",
+        "settings_gpaw_charge_help": "Neutral is the default (Susi et al. for graphene; GPAW charge=-1 on a full 1s core-hole setup). Charged uses GPAW charge=0; periodic GPAW adds a neutralizing background.",
+        "settings_gpaw_elements": "Elements to excite",
+        "settings_gpaw_setup_name": "Core-hole setup name",
+        "settings_gpaw_setup_dir": "Directory with core-hole setups",
+        "workflow_job_summary_gpaw": "GPAW periodic ΔSCF: **{n_steps} calculations** (1 ground state + **{n_sites}** inequivalent sites). {xc}, cutoff {cutoff} eV, supercell {supercell}, charge mode **{charge_mode}**.",
+        "workflow_cards_caption": "Localized 1s via Guess=Cards: orbital {orbital} is placed in the β vacancy {homo}",
+        "workflow_site_weight": "Spectrum weight {n} (symmetry-equivalent atoms)",
+        "review_periodic": "Periodic cell. The 3D molecule view is for gas-phase structures; coordinates and the lattice are below.",
+        "review_cell": "Lattice vectors (Å)",
+        "review_no_gjf_periodic": "Gaussian input is not used for a periodic GPAW job.",
+        "results_e0_ev": "E₀ (eV)",
+        "results_checks_skipped": "Some core-hole steps were left out of the spectrum (collapse check or missing energy).",
         "home_workflow_md": """
 ### Workflow (ΔSCF XPS)
 0. **Project** — create/load a workspace; compounds & jobs belong to one project  
@@ -398,7 +437,9 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
 | **2** | Нейтральный `SP` | Энергия **E₀**; `pop=full` — номера 1s орбиталей |
 | **3…N** | Core-hole `SP` | UKS + `Guess=Alter` — дырка в 1s для каждого C/N/O |
 
-**BE** = (E_core-hole − E₀) × 27.211 eV. Опционально — сдвиг C1s к 284.3 eV.
+**BE** = (E_core-hole − E₀) × 27.211 eV. В Настройках: абсолютное значение, один калибровочный сдвиг или свой референс для каждого элемента.
+
+**Периодические структуры** (CIF / POSCAR / extxyz, например слоистый C₇N) считает GPAW: по умолчанию нейтральная ячейка, одна дырка на неэквивалентную позицию. Для молекул остаётся Gaussian.
 
 **Перед стартом:** заряд и мультиплетность на странице Соединения; 3D в Обзоре; PBE/B3LYP в Настройках.
 """,
@@ -650,6 +691,43 @@ Workflow XPS — **цепочка задач Gaussian 09** для молекул
         "settings_basis": "Базисный набор",
         "settings_fwhm": "Voigt FWHM (эВ)",
         "settings_c1s_ref": "Референс C1s (эВ)",
+        "settings_n1s_ref": "Референс N1s (эВ)",
+        "settings_o1s_ref": "Референс O1s (эВ)",
+        "settings_engine": "Движок XPS",
+        "settings_engine_gaussian": "Gaussian 09 — молекулы",
+        "settings_engine_gpaw": "GPAW — периодические структуры",
+        "settings_engine_hint": "Gaussian считает газофазный ΔSCF. GPAW — для ячеек CIF / POSCAR / extxyz (например слоистый C7N).",
+        "settings_reference": "Референс энергии связи",
+        "settings_reference_mode": "Способ привязки",
+        "settings_reference_absolute": "Абсолютный ΔSCF (без сдвига)",
+        "settings_reference_global": "Один калибровочный сдвиг (выбранный элемент → референс)",
+        "settings_reference_per_element": "Свой референс для каждого элемента",
+        "settings_reference_fermi": "Уровень Ферми (периодический расчёт)",
+        "settings_reference_vbm": "Потолок валентной зоны (периодический расчёт)",
+        "settings_reference_element": "Элемент для единого калибровочного сдвига",
+        "settings_reference_help": "Абсолютный режим оставляет сырой ΔSCF. Глобальный сдвиг одинаков для всех пиков. Поэлементный сдвиг привязывает каждый элемент к своему референсу и заменяет промежутки между элементами. Ферми и VBM — для GPAW.",
+        "settings_gpaw": "GPAW (периодические структуры)",
+        "settings_gpaw_hint": "Обрезание плоских волн, k-сетку и сверхячейку нужно проверять на сходимость. Размазка по умолчанию 0.1 эВ (значение GPAW для периодических систем). Заряд по умолчанию нейтральный: остовный электрон попадает в зону проводимости.",
+        "settings_gpaw_xc": "Функционал XC",
+        "settings_gpaw_cutoff": "Обрезание плоских волн (эВ)",
+        "settings_gpaw_smearing": "Размазка Ферми–Дирака (эВ)",
+        "settings_gpaw_kpts": "k-точки (n1,n2,n3)",
+        "settings_gpaw_supercell": "Сверхячейка (n1,n2,n3)",
+        "settings_gpaw_charge_mode": "Заряд остовной дырки",
+        "settings_gpaw_charge_neutral": "Нейтральная ячейка (лишний электрон в зоне проводимости)",
+        "settings_gpaw_charge_charged": "Заряженная ячейка (электрон удалён)",
+        "settings_gpaw_charge_help": "По умолчанию нейтральный режим (Susi и др. для графена; в GPAW charge=-1 на полнодырочном 1s-сетапе). Заряженный режим — charge=0; в периодическом GPAW добавляется компенсирующий фон.",
+        "settings_gpaw_elements": "Элементы для дырки",
+        "settings_gpaw_setup_name": "Имя остовного сетапа",
+        "settings_gpaw_setup_dir": "Каталог с остовными сетапами",
+        "workflow_job_summary_gpaw": "Периодический ΔSCF в GPAW: **{n_steps} расчётов** (1 основное состояние + **{n_sites}** неэквивалентных позиций). {xc}, обрезание {cutoff} эВ, сверхячейка {supercell}, заряд **{charge_mode}**.",
+        "workflow_cards_caption": "Локализованная 1s через Guess=Cards: орбиталь {orbital} ставится в β-вакансию {homo}",
+        "workflow_site_weight": "Вес в спектре {n} (симметрично эквивалентные атомы)",
+        "review_periodic": "Периодическая ячейка. Трёхмерный просмотр молекулы — для газовой фазы; координаты и решётка ниже.",
+        "review_cell": "Векторы решётки (Å)",
+        "review_no_gjf_periodic": "Для периодического расчёта GPAW файл Gaussian не используется.",
+        "results_e0_ev": "E₀ (эВ)",
+        "results_checks_skipped": "Часть core-hole шагов не вошла в спектр (проверка дырки или нет энергии).",
         "home_workflow_md": """
 ### Workflow (ΔSCF XPS)
 0. **Проект** — создать/загрузить рабочее пространство; соединения и задачи принадлежат одному проекту  

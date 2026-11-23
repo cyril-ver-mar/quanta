@@ -9,18 +9,16 @@ import time
 from pathlib import Path
 
 from src.core.dscf import (
+    HA_TO_EV,
     StepKind,
     StepStatus,
-    assign_core_orbitals,
-    corehole_alter_pair,
-    corehole_vacancy_index,
+    corehole_charge_multiplicity,
     is_dscf_workflow,
-    list_xps_atoms,
     next_runnable_step,
 )
 from src.core.models import Job, JobStatus
 from src.db.repositories import JobRepository
-from src.services.compound_service import CompoundService, mol_to_atoms
+from src.services.compound_service import CompoundService
 from src.services.gaussian_parser import estimate_eta_seconds, final_scf_energy_ha, parse_gaussian_log
 from src.services.job_service import JobService
 from src.services.results_service import ResultsService
@@ -148,6 +146,8 @@ class GaussianRunner:
 
         job = None
         for candidate in queued:
+            if (candidate.meta_json or {}).get("engine", "gaussian") not in ("gaussian", None, ""):
+                continue
             steps = self.jobs.get_steps(candidate.id or 0)
             if is_dscf_workflow(steps):
                 job = candidate
@@ -189,9 +189,15 @@ class GaussianRunner:
 
                 self._prepare_following_steps(job.id, step.key, settings)
                 steps = self.jobs.get_steps(job.id)
-                if all(s.status == StepStatus.COMPLETED for s in steps):
-                    job.status = JobStatus.COMPLETED
-                    self.results.curate_job(job.id, settings)
+                if steps and all(s.status in (StepStatus.COMPLETED, StepStatus.FAILED) for s in steps):
+                    failed = [s for s in steps if s.status == StepStatus.FAILED]
+                    job.status = JobStatus.FAILED if failed else JobStatus.COMPLETED
+                    if failed:
+                        job.error = "; ".join(s.error for s in failed if s.error)[:2000]
+                    try:
+                        self.results.curate_job(job.id, settings)
+                    except Exception:
+                        logger.exception("Curation failed for job %s", job.id)
                     self.repo.update(job)
                     if soft_cancel_requested():
                         for q in self.repo.list_by_status(JobStatus.QUEUED):
@@ -223,25 +229,7 @@ class GaussianRunner:
             return
 
         if completed_key == "neutral_sp":
-            compound = self.compounds.get(job.compound_id)
-            if compound is None:
-                raise ValueError("compound missing")
-            mol = self.compounds.load_molecule(compound)
-            xps_atoms = list_xps_atoms(mol_to_atoms(mol))
-            neutral_log = job_dir(job_id) / "raw" / next(
-                s for s in steps if s.kind == StepKind.NEUTRAL_SP
-            ).log_name
-            parsed = parse_gaussian_log(neutral_log)
-            orb_map = assign_core_orbitals(parsed.orbitals, xps_atoms)
-            vacancy = corehole_vacancy_index(parsed.orbitals)
-            for step in steps:
-                if step.kind != StepKind.COREHOLE_SP or step.atom_index is None:
-                    continue
-                core_mo = orb_map[step.atom_index]
-                step.orbital_index, step.homo_index = corehole_alter_pair(core_mo, vacancy)
-                self.jobs.write_corehole_gjf(job_id, step, settings)
-                step.status = StepStatus.QUEUED
-            self.jobs.save_steps(job_id, steps)
+            self.jobs.map_coreholes_from_neutral(job_id, settings)
             return
 
     def _run_cwd(self, job: Job, settings: AppSettings) -> Path:
@@ -285,6 +273,31 @@ class GaussianRunner:
         if src.resolve() != dst.resolve():
             shutil.copy2(src, dst)
         logger.info("Staged checkpoint %s -> %s", src, dst)
+
+    def _corehole_verdict(self, job_id: int, step, log_path: Path, energy_ha: float):
+        from src.core.gaussian_mos import assess_core_hole, parse_population
+
+        job = self.repo.get(job_id)
+        compound = self.compounds.get(job.compound_id) if job else None
+        e0 = None
+        if job is not None:
+            for other in self.jobs.get_steps(job_id):
+                if other.kind == StepKind.NEUTRAL_SP and other.energy_ha is not None:
+                    e0 = float(other.energy_ha)
+        be = (energy_ha - e0) * HA_TO_EV if e0 is not None else None
+        multiplicity = 2
+        if compound is not None:
+            _charge, multiplicity = corehole_charge_multiplicity(
+                compound.charge, compound.multiplicity
+            )
+        population = parse_population(log_path.read_text(encoding="utf-8", errors="replace"))
+        return assess_core_hole(
+            element=step.element or "",
+            atom_index=int(step.atom_index or 0),
+            multiplicity=multiplicity,
+            be_raw_ev=be,
+            population=population,
+        )
 
     def _run_step(self, job_id: int, step, settings: AppSettings, exe: str) -> bool:
         jdir = job_dir(job_id)
@@ -441,9 +454,19 @@ class GaussianRunner:
                     break
 
             if parsed.normal_termination:
-                step.status = StepStatus.COMPLETED
                 step.energy_ha = final_scf_energy_ha(parsed)
                 step.error = ""
+                if step.kind == StepKind.COREHOLE_SP and step.energy_ha is not None:
+                    verdict = self._corehole_verdict(job_id, step, out_log, step.energy_ha)
+                    step.diagnostics = verdict.message
+                    if verdict.ok:
+                        step.status = StepStatus.COMPLETED
+                    else:
+                        step.status = StepStatus.FAILED
+                        step.error = "Core-hole check failed: " + verdict.message
+                        step.diagnostics = "collapse"
+                else:
+                    step.status = StepStatus.COMPLETED
             else:
                 step.status = StepStatus.FAILED
                 snippet = (parsed.raw_errors[0] if parsed.raw_errors else "").strip()
@@ -455,6 +478,9 @@ class GaussianRunner:
                 if s.key == step.key:
                     steps[i] = step
             self.jobs.save_steps(job_id, steps)
+            if step.diagnostics == "collapse":
+                # This atom's hole is unusable, but the other atoms can still run.
+                return True
             return step.status == StepStatus.COMPLETED
         except Exception as exc:
             logger.exception("Step %s failed", step.key)

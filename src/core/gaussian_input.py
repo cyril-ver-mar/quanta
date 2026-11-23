@@ -84,16 +84,43 @@ def ensure_opt_route(route: str, *, has_connectivity: bool) -> str:
 
 
 def route_card(route: str) -> str:
-    """One ``# …`` route card. Never wraps — G09 splits overlong lines mid-token."""
-    body = ascii_safe(" ".join((route or "").split()))
-    line = f"# {body}" if body else "#"
-    if len(line) > _G09_ROUTE_MAX:
+    """One ``# …`` route card. Raises if the line would exceed G09's width."""
+    lines = route_lines(route)
+    if len(lines) != 1:
         raise ValueError(
-            f"Gaussian route exceeds {_G09_ROUTE_MAX} characters ({len(line)}): {line!r}. "
-            "Shorten keywords (e.g. UPBEPBE, omit Integral on this step) — "
-            "do not wrap onto multiple # lines."
+            f"Gaussian route exceeds {_G09_ROUTE_MAX} characters "
+            f"({len('# ' + ' '.join((route or '').split()))}): {route!r}. "
+            "Use route_lines() to wrap on spaces."
         )
-    return line
+    return lines[0]
+
+
+def route_lines(route: str) -> list[str]:
+    """Wrap a route on spaces into ``#`` lines of at most 70 characters.
+
+    G09 splits an over-long physical line in the middle of a token. Each line
+    starts with ``#`` and every token stays intact.
+    """
+    body = ascii_safe(" ".join((route or "").split()))
+    if not body:
+        return ["#"]
+    words = body.split()
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = word if not current else f"{current} {word}"
+        if len("# " + candidate) <= _G09_ROUTE_MAX:
+            current = candidate
+            continue
+        if not current:
+            raise ValueError(
+                f"Gaussian route token exceeds {_G09_ROUTE_MAX} characters: {word!r}"
+            )
+        lines.append(f"# {current}")
+        current = word
+    if current:
+        lines.append(f"# {current}")
+    return lines
 
 
 def join_gjf_lines(lines: list[str]) -> str:
@@ -114,7 +141,7 @@ def write_gjf(spec: GaussianJobSpec) -> str:
         f"%chk={ascii_safe(spec.chk_name)}",
         f"%nprocshared={spec.nproc}",
         f"%mem={spec.mem_mb}MB",
-        route_card(route),
+        *route_lines(route),
         "",
         ascii_safe(spec.title),
         "",
@@ -140,6 +167,7 @@ def write_checkpoint_job(
     nproc: int,
     mem_mb: int,
     alter_swap: tuple[int, int] | None = None,
+    guess_cards: str | None = None,
 ) -> str:
     """SP from checkpoint; optional Guess=Alter (core 1s ↔ β vacancy).
 
@@ -155,14 +183,18 @@ def write_checkpoint_job(
         f"%chk={ascii_safe(chk)}",
         f"%nprocshared={nproc}",
         f"%mem={mem_mb}MB",
-        route_card(route),
+        *route_lines(route),
         "",
         ascii_safe(title),
         "",
         f"{charge} {multiplicity}",
         "",  # end molecule specification (geometry from checkpoint)
     ]
-    if alter_swap is not None:
+    if guess_cards:
+        # Molecule spec already ended with a blank line. Cards follow it.
+        lines.append(guess_cards.rstrip("\n"))
+        lines.append("")
+    elif alter_swap is not None:
         a, b = alter_swap
         lines.extend(
             [

@@ -58,24 +58,48 @@ else:
     job_name = st.text_input(t("workflow_job_name", lang), value="")
 
     elements = (compound.meta_json or {}).get("elements") or {}
-    n_xps = sum(elements.get(el, 0) for el in ("C", "N", "O"))
-    st.info(
-        t("workflow_job_summary", lang).format(
-            n_xps=n_xps,
-            n_steps=2 + n_xps,
-            functional=dscf.functional,
-            basis=dscf.basis,
+    periodic = bool((compound.meta_json or {}).get("periodic"))
+    if periodic or (settings.engine or "gaussian") == "gpaw":
+        from src.core.engines.gpaw import GpawSettings, plan_gpaw_steps
+        from src.core.periodic import structure_from_meta
+
+        try:
+            structure = structure_from_meta(compound.meta_json or {})
+            gpaw = GpawSettings.from_app(settings, base_charge=int(compound.charge or 0))
+            _steps, sites = plan_gpaw_steps(structure, gpaw, job_id=0)
+            st.info(
+                t(
+                    "workflow_job_summary_gpaw",
+                    lang,
+                    n_sites=len(sites),
+                    n_steps=1 + len(sites),
+                    xc=gpaw.xc,
+                    cutoff=f"{gpaw.pw_cutoff_ev:.0f}",
+                    supercell="×".join(str(n) for n in gpaw.supercell),
+                    charge_mode=gpaw.charge_mode,
+                )
+            )
+        except Exception as exc:
+            st.error(str(exc))
+    else:
+        n_xps = sum(elements.get(el, 0) for el in ("C", "N", "O"))
+        st.info(
+            t("workflow_job_summary", lang).format(
+                n_xps=n_xps,
+                n_steps=2 + n_xps,
+                functional=dscf.functional,
+                basis=dscf.basis,
+            )
         )
-    )
-    st.caption(
-        t(
-            "workflow_route_caption",
-            lang,
-            route=opt_route(dscf),
-            nproc=settings.nproc,
-            mem=settings.mem_mb,
+        st.caption(
+            t(
+                "workflow_route_caption",
+                lang,
+                route=opt_route(dscf),
+                nproc=settings.nproc,
+                mem=settings.mem_mb,
+            )
         )
-    )
 
     if st.button(t("workflow_create_btn", lang), type="primary"):
         proj = get_project()

@@ -13,8 +13,8 @@
 | Storage | SQLite for jobs/compounds; job files under `data/jobs/<id>/` |
 | Secrets / paths | User-editable in Settings (Gaussian path, work/scratch dirs); optional `.streamlit/secrets.toml` later |
 | UI language | EN / RU |
-| Engine v1 | Gaussian 09 only (ORCA post-v1) |
-| XPS method | Gas-phase **ΔSCF** in Gaussian 09: OPT → neutral SP (E₀) → UKS core-hole SP per C/N/O (`Guess=Alter`); BE = ΔE; optional C1s shift → 284.3 eV; Voigt FWHM ≈1.2 eV. Yamada (TANSO 2015) retired at tag `yamada_end`. |
+| Engine v1 | Gaussian 09 for molecules. GPAW for periodic cells. ORCA is not implemented; `src/core/engines` is the seam for it. |
+| XPS method | **ΔSCF**. Molecules: Gaussian 09 OPT → neutral SP (E₀, `pop=full`) → UKS core-hole per C/N/O. 1s MOs are assigned from 1s populations and localized (Pipek–Mezey + `Guess=Cards`) when the canonical MO is delocalized. BE = ΔE. Reference is explicit: absolute, one global shift, or per-element. Periodic: GPAW full 1s core-hole setup, one hole per inequivalent site, neutral cell by default. |
 | Inputs | mol2 / pdb / sdf via RDKit; charge & multiplicity editable |
 | Resources default | `%mem=1500MB`, `%nprocshared=4`, one job at a time |
 | Platforms | Windows: run + analyze; Mac: analyze + archive import only |

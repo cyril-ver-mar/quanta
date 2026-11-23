@@ -91,7 +91,7 @@ st.divider()
 st.subheader(t("project_add_compounds", lang))
 uploads = st.file_uploader(
     t("upload", lang),
-    type=["mol2", "pdb", "sdf", "mol"],
+    type=["mol2", "pdb", "sdf", "mol", "cif", "poscar", "vasp", "xyz", "extxyz"],
     accept_multiple_files=True,
 )
 c1, c2 = st.columns(2)
@@ -112,6 +112,7 @@ if uploads and st.button(t("project_import_btn", lang)):
                 name=Path(uploaded.name).stem,
                 charge=int(charge),
                 multiplicity=int(mult),
+                source_name=uploaded.name,
             )
             project_service.add_compound_to_project(
                 project, cid, label=Path(uploaded.name).stem

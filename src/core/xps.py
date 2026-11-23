@@ -260,9 +260,14 @@ def simulate_spectrum(
     xmin, xmax = min(centers) - pad, max(centers) + pad
     x = np.arange(xmin, xmax + step, step)
     y = np.zeros_like(x, dtype=float)
-    for c in centers:
+    for lv in subset:
         y += peak_profile(
-            x, c, profile=profile, fwhm=fwhm, intensity=1.0, fraction=fraction
+            x,
+            lv.binding_ev_final,
+            profile=profile,
+            fwhm=fwhm,
+            intensity=float(lv.weight or 1.0),
+            fraction=fraction,
         )
     return x, y
 
@@ -284,6 +289,7 @@ def levels_from_summary_rows(rows: list[dict]) -> list[CoreLevel]:
                 binding_ev_scaled=raw,
                 binding_ev_shifted=shifted,
                 binding_ev_final=be,
+                weight=float(row.get("weight") or 1.0),
             )
         )
     return out

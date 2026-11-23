@@ -67,3 +67,5 @@ class CoreLevel:
     binding_ev_scaled: float
     binding_ev_shifted: float
     binding_ev_final: float
+    weight: float = 1.0
+    reference_mode: str = ""

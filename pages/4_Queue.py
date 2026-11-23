@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.core.dscf import StepStatus
-from src.services.gaussian_runner import GaussianRunner, gaussian_available
+from src.services.engine_runner import queue_can_run, run_next
 from src.services.job_service import JobService
 from src.services.gaussian_parser import parse_gaussian_log
 from src.ui.components.log_viewer import list_job_logs, render_gaussian_log_viewer
@@ -38,12 +38,14 @@ if get_project() is None:
 pids = project_compound_ids()
 
 svc = JobService()
-can_run = gaussian_available(settings)
+can_run, engine_message = queue_can_run(settings)
+if engine_message and not can_run:
+    st.warning(engine_message)
 
 c1, c2, c3, c4 = st.columns(4)
 if c1.button(t("queue_run_next", lang), disabled=not can_run):
     with st.spinner(t("queue_running", lang)):
-        jid = GaussianRunner().run_next(settings)
+        jid = run_next(settings)
     if jid:
         st.success(t("queue_finished", lang, job_id=jid))
     else:

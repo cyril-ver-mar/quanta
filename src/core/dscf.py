@@ -46,6 +46,10 @@ class DscfStep:
     orbital_index: int | None = None  # 1s MO to ionize (1-based)
     homo_index: int | None = None  # β vacancy MO after Guess=Read (= n_occ)
     error: str = ""
+    guess_style: str = "alter"  # alter | cards
+    weight: int = 1
+    energy_ev: float | None = None  # GPAW totals are eV, not Hartree
+    diagnostics: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -70,6 +74,10 @@ class DscfStep:
             orbital_index=raw.get("orbital_index"),
             homo_index=raw.get("homo_index"),
             error=raw.get("error", ""),
+            guess_style=raw.get("guess_style", "alter"),
+            weight=int(raw.get("weight", 1) or 1),
+            energy_ev=raw.get("energy_ev"),
+            diagnostics=raw.get("diagnostics", ""),
         )
 
 
@@ -79,7 +87,11 @@ class DscfSettings:
     basis: str = "6-31g(d)"
     fwhm_ev: float = 1.2
     c1s_ref_ev: float = REF_C1S_EV
+    n1s_ref_ev: float = 399.3
+    o1s_ref_ev: float = 530.6
     apply_c1s_shift: bool = True
+    reference_mode: str = "absolute"
+    reference_element: str = "C"
 
 
 # Gaussian 09 method names (UI may store short aliases like "pbe").
@@ -118,19 +130,20 @@ def neutral_route(settings: DscfSettings) -> str:
     return f"sp {method}/{settings.basis} pop=full geom=checkpoint guess=read"
 
 
-def corehole_route(settings: DscfSettings) -> str:
-    """Core-hole UKS SP (cation after Guess=Alter).
+def corehole_route(settings: DscfSettings, *, cards: bool = False) -> str:
+    """Core-hole UKS SP.
 
-    Use ``UPBEPBE`` (not ``uks PBEPBE``). One short ``#`` line — G09 hard-wraps
-    longer route cards mid-token. ``SCF=XQC`` switches to quadratic convergence
-    when DIIS stalls (common for localized core holes after 128 cycles).
+    Use ``UPBEPBE`` (not ``uks PBEPBE``). ``SCF=XQC`` switches to quadratic
+    convergence when DIIS stalls. ``pop=full`` is required so the log can be
+    checked for 1s occupation, Mulliken spin, and ``<S**2>``. ``nosymm`` keeps
+    Gaussian from re-symmetrizing a localized hole. The route is wrapped on
+    spaces into ``#`` lines of at most 70 characters.
     """
     method = gaussian_method_unrestricted(settings.functional)
-    # pop=full not needed here (energy only for BE); keep card ≤ ~70 chars.
-    # MaxCyc is the G09 abbreviation for MaxCycle.
+    guess = "guess=(read,cards)" if cards else "guess=(read,alter)"
     return (
         f"{method}/{settings.basis} geom=check "
-        "guess=(read,alter) SCF=(XQC,MaxCyc=512)"
+        f"{guess} nosymm pop=full SCF=(XQC,MaxCyc=512)"
     )
 
 
@@ -230,19 +243,18 @@ def build_workflow_steps(
 def assign_core_orbitals(
     orbitals: list[Orbital],
     xps_atoms: list[tuple[int, str]],
+    population: Any = None,
 ) -> dict[int, int]:
-    """Map atom index → 1s orbital number (1-based, from neutral SP)."""
-    occupied = sorted(
-        [o for o in orbitals if o.occupancy > 0.1],
-        key=lambda o: o.energy_ha,
-    )
-    n_core = len(xps_atoms)
-    if len(occupied) < n_core:
-        raise ValueError(
-            f"Expected at least {n_core} occupied core orbitals, found {len(occupied)}"
-        )
-    core_orbs = occupied[:n_core]
-    return {atom_idx: core_orbs[i].index for i, (atom_idx, _el) in enumerate(xps_atoms)}
+    """Map atom index → 1s orbital number (1-based).
+
+    With ``pop=full`` coefficients each atom gets the 1s MO localized on that
+    atom. Without coefficients, MOs are matched by element eigenvalue window
+    (an N 1s is never given to carbon). The old energy-sorted, input-order
+    pairing is not used: on melamine it assigned C1 the N 1s at about −14.3 Ha.
+    """
+    from src.core.gaussian_mos import resolve_core_orbitals
+
+    return resolve_core_orbitals(orbitals, xps_atoms, population).by_atom
 
 
 def homo_orbital_index(orbitals: list[Orbital]) -> int:
@@ -284,8 +296,22 @@ def compute_binding_energies(
     corehole_energies: list[tuple[int, str, float]],
     c1s_ref_ev: float = REF_C1S_EV,
     apply_c1s_shift: bool = True,
+    *,
+    reference_mode: str | None = None,
+    reference_element: str = "C",
+    n1s_ref_ev: float = 399.3,
+    o1s_ref_ev: float = 530.6,
+    weights: dict[int, float] | None = None,
+    info: dict[str, Any] | None = None,
 ) -> list[CoreLevel]:
-    """Build CoreLevel rows from ΔSCF total energies (Ha → eV)."""
+    """Build CoreLevel rows from ΔSCF total energies (Ha → eV).
+
+    ``reference_mode`` selects absolute, one global calibration shift, or a
+    per-element shift. When it is omitted, ``apply_c1s_shift=True`` keeps the
+    previous global C1s calibration and ``False`` leaves the raw ΔSCF values.
+    """
+    from src.core.referencing import apply_be_reference, element_references
+
     levels: list[CoreLevel] = []
     for atom_index, element, e_ha in corehole_energies:
         be_raw = (e_ha - e0_ha) * HA_TO_EV
@@ -299,22 +325,20 @@ def compute_binding_energies(
                 binding_ev_scaled=be_raw,
                 binding_ev_shifted=be_raw,
                 binding_ev_final=be_raw,
+                weight=float((weights or {}).get(atom_index, 1.0)),
             )
         )
 
-    if apply_c1s_shift:
-        c_vals = [lv.binding_ev_raw for lv in levels if lv.element == "C"]
-        if c_vals:
-            shift = c1s_ref_ev - (sum(c_vals) / len(c_vals))
-            for lv in levels:
-                lv.binding_ev_shifted = lv.binding_ev_raw + shift
-                lv.binding_ev_final = lv.binding_ev_shifted
-        else:
-            for lv in levels:
-                lv.binding_ev_final = lv.binding_ev_raw
-    else:
-        for lv in levels:
-            lv.binding_ev_final = lv.binding_ev_raw
+    if reference_mode is None:
+        reference_mode = "global" if apply_c1s_shift else "absolute"
+    meta = apply_be_reference(
+        levels,
+        reference_mode,
+        refs=element_references(c1s=c1s_ref_ev, n1s=n1s_ref_ev, o1s=o1s_ref_ev),
+        reference_element=reference_element,
+    )
+    if info is not None:
+        info.update(meta)
     return levels
 
 
