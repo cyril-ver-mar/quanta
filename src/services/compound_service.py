@@ -17,6 +17,8 @@ from src.utils.paths import DATA_DIR, ensure_runtime_dirs
 logger = get_logger("quanta.compounds")
 
 SUPPORTED = {".mol2", ".pdb", ".sdf", ".mol"}
+PERIODIC_SUFFIXES = {".cif", ".poscar", ".vasp", ".xyz", ".extxyz", ".traj"}
+PERIODIC_NAMES = {"poscar", "contcar", "poscar.vasp"}
 
 
 def _load_mol(path: Path) -> Chem.Mol:
@@ -67,10 +69,24 @@ class CompoundService:
         name: str | None = None,
         charge: int = 0,
         multiplicity: int = 1,
+        *,
+        source_name: str | None = None,
     ) -> int:
         path = Path(uploaded_path)
-        if path.suffix.lower() not in SUPPORTED:
-            raise ValueError(f"Supported: {sorted(SUPPORTED)}")
+        label = source_name or path.name
+        if _is_periodic_name(label) or path.suffix.lower() in PERIODIC_SUFFIXES:
+            return self._import_periodic(
+                path,
+                name=name,
+                charge=charge,
+                multiplicity=multiplicity,
+                source_name=label,
+            )
+        if path.suffix.lower() not in SUPPORTED and Path(label).suffix.lower() not in SUPPORTED:
+            raise ValueError(
+                "Supported molecules: mol2, pdb, sdf, mol. "
+                "Supported periodic structures: cif, poscar, vasp, extxyz."
+            )
         mol = _load_mol(path)
         dest = self.store / path.name
         shutil.copy2(path, dest)
@@ -132,3 +148,54 @@ class CompoundService:
             route=route,
         )
         return write_gjf(spec)
+
+    def _import_periodic(
+        self,
+        path: Path,
+        *,
+        name: str | None,
+        charge: int,
+        multiplicity: int,
+        source_name: str,
+    ) -> int:
+        from src.core.periodic import (
+            element_counts as count_elements,
+            formula_from_symbols,
+            read_periodic_structure,
+        )
+
+        structure = read_periodic_structure(str(path), source_name=source_name)
+        suffix = Path(source_name).suffix.lower().lstrip(".") or "extxyz"
+        dest_name = source_name if Path(source_name).suffix else f"{Path(source_name).name}.extxyz"
+        dest = self.store / dest_name
+        if path.resolve() != dest.resolve():
+            shutil.copy2(path, dest)
+        counts = count_elements(structure.symbols)
+        compound = Compound(
+            id=None,
+            name=name or Path(source_name).stem,
+            source_format=suffix,
+            source_path=str(dest),
+            charge=charge,
+            multiplicity=multiplicity,
+            formula=formula_from_symbols(structure.symbols),
+            n_atoms=structure.n_atoms,
+            meta_json={
+                "periodic": True,
+                "elements": counts,
+                "symbols": list(structure.symbols),
+                "positions": [list(p) for p in structure.positions],
+                "cell": [list(row) for row in structure.cell],
+                "pbc": list(structure.pbc),
+            },
+        )
+        cid = self.repo.add(compound)
+        logger.info("Imported periodic structure %s id=%s", compound.name, cid)
+        return cid
+
+
+def _is_periodic_name(name: str) -> bool:
+    stem = Path(name).name.lower()
+    if stem in PERIODIC_NAMES:
+        return True
+    return Path(name).suffix.lower() in PERIODIC_SUFFIXES

@@ -5,6 +5,14 @@ Version source of truth: root `VERSION`. Git tags: `vMAJOR.MINOR.PATCH`.
 
 ## [Unreleased]
 
+### Fixed
+- **1s assignment** — core orbitals are matched to atoms by 1s MO population (and localized when symmetry delocalizes them). The old energy-sorted, input-order map gave melamine C1 an N 1s (~−14.3 Ha) and pulled the C 1s reference off scale.
+- **Core-hole collapse** — a finished core-hole step is kept only if `<S^2>`, the Mulliken spin on the target atom, the 1s occupation and the element BE window agree. A failed atom does not enter the reference or the spectrum.
+- **Binding-energy reference** — absolute ΔSCF, one global calibration shift, or a per-element reference. The shift is no longer an implicit constant applied to every element.
+
+### Added
+- **GPAW engine** for periodic CIF / POSCAR / extxyz (layered C₇N and similar). Neutral supercell by default (extra electron in the conduction band); charged cell is optional. Fermi and VBM references. GPAW stays optional.
+
 ## [1.0.24] — 2026-08-23
 
 ### Fixed

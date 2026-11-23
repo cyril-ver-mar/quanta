@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from src.core.dscf import (
@@ -44,7 +45,11 @@ class JobService:
             basis=settings.dscf_basis,
             fwhm_ev=settings.xps_fwhm_ev,
             c1s_ref_ev=settings.xps_c1s_ref_ev,
+            n1s_ref_ev=settings.xps_n1s_ref_ev,
+            o1s_ref_ev=settings.xps_o1s_ref_ev,
             apply_c1s_shift=settings.dscf_apply_c1s_shift,
+            reference_mode=settings.xps_reference_mode,
+            reference_element=settings.xps_reference_element,
         )
 
     def create_job(
@@ -59,6 +64,21 @@ class JobService:
         if compound is None:
             raise ValueError(f"Compound {compound_id} not found")
 
+        engine = (getattr(settings, "engine", None) or "gaussian").strip().lower()
+        periodic = bool((compound.meta_json or {}).get("periodic"))
+        if engine == "gpaw" or periodic:
+            if engine != "gpaw":
+                raise ValueError(
+                    "This structure is periodic. Select the GPAW engine in Settings "
+                    "before creating the XPS workflow."
+                )
+            if not periodic:
+                raise ValueError(
+                    "GPAW ΔSCF is for periodic structures (CIF, POSCAR, extxyz with a cell). "
+                    "Use the Gaussian engine for molecules."
+                )
+            return self._create_gpaw_job(compound, settings, name=name, project_name=project_name)
+
         dscf = self._dscf_settings(settings)
         proj = (project_name or "default").strip() or "default"
         job = Job(
@@ -69,7 +89,7 @@ class JobService:
             route=opt_route(dscf),
             nproc=settings.nproc,
             mem_mb=settings.mem_mb,
-            meta_json={"protocol": "dscf", "project_name": proj},
+            meta_json={"protocol": "dscf", "engine": "gaussian", "project_name": proj},
         )
         job_id = self.repo.add(job)
         jdir = job_dir(job_id)
@@ -161,6 +181,11 @@ class JobService:
             compound.charge,
             compound.multiplicity,
         )
+        cards = None
+        alter = (step.orbital_index, step.homo_index)
+        if step.guess_style == "cards":
+            cards = self._localized_cards(job_id, step.orbital_index, step.homo_index)
+            alter = None
         text = write_checkpoint_job(
             title=f"{compound.name} - DSCF core hole {label}",
             charge=charge,
@@ -170,7 +195,8 @@ class JobService:
             chk=f"job_{job_id}_corehole_{label}.chk",
             nproc=settings.nproc,
             mem_mb=settings.mem_mb,
-            alter_swap=(step.orbital_index, step.homo_index),
+            alter_swap=alter,
+            guess_cards=cards,
         )
         path = job_dir(job_id) / "input" / step.gjf_name
         write_gaussian_file(path, text)
@@ -270,16 +296,34 @@ class JobService:
         job.meta_json["steps"] = serialize_steps(steps)
         self.repo.update(job)
 
-    def _rebuild_corehole_steps(self, job_id: int, settings: AppSettings) -> None:
-        """Remap orbitals and rewrite core-hole .gjf files after a successful neutral SP."""
+    def _localized_cards(self, job_id: int, core_mo: int, vacancy_mo: int) -> str:
+        import numpy as np
+
+        from src.core.gaussian_mos import beta_with_core_hole, format_guess_cards
+
+        path = job_dir(job_id) / "input" / "localized_mos.npz"
+        if not path.is_file():
+            raise FileNotFoundError(
+                "Localized 1s orbitals are missing. Re-run the neutral single point "
+                "with pop=full so Quanta can build the Guess=Cards input."
+            )
+        coeff = np.load(path)["coefficients"]
+        beta = beta_with_core_hole(coeff, core_mo, vacancy_mo)
+        return format_guess_cards(coeff, beta)
+
+    def map_coreholes_from_neutral(self, job_id: int, settings: AppSettings) -> None:
+        """Assign each atom's 1s from the neutral log and write core-hole inputs."""
+        import numpy as np
+
         from src.core.dscf import (
-            assign_core_orbitals,
             corehole_alter_pair,
+            corehole_route,
             corehole_vacancy_index,
             list_xps_atoms,
         )
-        from src.services.gaussian_parser import parse_gaussian_log
+        from src.core.gaussian_mos import parse_population, resolve_core_orbitals
         from src.services.compound_service import mol_to_atoms
+        from src.services.gaussian_parser import parse_gaussian_log
 
         job = self.repo.get(job_id)
         if job is None:
@@ -292,18 +336,128 @@ class JobService:
         xps_atoms = list_xps_atoms(mol_to_atoms(mol))
         neutral = next(s for s in steps if s.kind == StepKind.NEUTRAL_SP)
         neutral_log = job_dir(job_id) / "raw" / neutral.log_name
+        text = neutral_log.read_text(encoding="utf-8", errors="replace")
         parsed = parse_gaussian_log(neutral_log)
-        orb_map = assign_core_orbitals(parsed.orbitals, xps_atoms)
+        population = parse_population(text)
+        resolved = resolve_core_orbitals(parsed.orbitals, xps_atoms, population)
+        if resolved.guess_style == "cards":
+            if resolved.coefficients is None:
+                raise ValueError("Localized coefficients were not produced")
+            np.savez_compressed(
+                job_dir(job_id) / "input" / "localized_mos.npz",
+                coefficients=resolved.coefficients,
+            )
         vacancy = corehole_vacancy_index(parsed.orbitals)
+        dscf = self._dscf_settings(settings)
         for step in steps:
             if step.kind != StepKind.COREHOLE_SP or step.atom_index is None:
                 continue
-            core_mo = orb_map[step.atom_index]
+            core_mo = resolved.by_atom[step.atom_index]
             step.orbital_index, step.homo_index = corehole_alter_pair(core_mo, vacancy)
+            step.guess_style = resolved.guess_style
+            step.route = corehole_route(dscf, cards=resolved.guess_style == "cards")
+            step.diagnostics = " ".join(resolved.warnings)
             self.write_corehole_gjf(job_id, step, settings)
             if step.status != StepStatus.COMPLETED:
                 step.status = StepStatus.QUEUED
         self.save_steps(job_id, steps)
+        job = self.repo.get(job_id)
+        if job is not None:
+            job.meta_json["core_assignment"] = {
+                "guess_style": resolved.guess_style,
+                "by_atom": {str(k): int(v) for k, v in resolved.by_atom.items()},
+                "population": {str(k): float(v) for k, v in resolved.population.items()},
+                "warnings": resolved.warnings,
+            }
+            self.repo.update(job)
+
+    def _rebuild_corehole_steps(self, job_id: int, settings: AppSettings) -> None:
+        """Remap orbitals and rewrite core-hole .gjf files after a successful neutral SP."""
+        self.map_coreholes_from_neutral(job_id, settings)
+
+    def _create_gpaw_job(
+        self,
+        compound,
+        settings: AppSettings,
+        *,
+        name: str | None,
+        project_name: str | None,
+    ) -> int:
+        from src.core.engines.gpaw import GpawSettings, calculator_keywords, plan_gpaw_steps, render_gpaw_script
+        from src.core.periodic import structure_from_meta
+
+        proj = (project_name or "default").strip() or "default"
+        structure = structure_from_meta(compound.meta_json or {})
+        gpaw = GpawSettings.from_app(settings, base_charge=int(compound.charge or 0))
+        job = Job(
+            id=None,
+            compound_id=int(compound.id),
+            name=name or f"{compound.name}_gpaw_xps",
+            status=JobStatus.QUEUED,
+            route=f"GPAW {gpaw.xc} PW({gpaw.pw_cutoff_ev:.0f})",
+            nproc=settings.nproc,
+            mem_mb=settings.mem_mb,
+            meta_json={
+                "protocol": "dscf",
+                "engine": "gpaw",
+                "project_name": proj,
+                "charge_mode": gpaw.charge_mode,
+            },
+        )
+        job_id = self.repo.add(job)
+        jdir = job_dir(job_id)
+        steps, sites = plan_gpaw_steps(structure, gpaw, job_id)
+        src = Path(compound.source_path)
+        if src.exists():
+            (jdir / "input" / src.name).write_bytes(src.read_bytes())
+        structure_path = str(jdir / "input" / (src.name if src.exists() else "structure.extxyz"))
+        for step in steps:
+            kind = "neutral" if step.kind == StepKind.NEUTRAL_SP else "corehole"
+            keywords = calculator_keywords(
+                gpaw,
+                kind=kind,
+                atom_index=step.atom_index,
+                txt=str(jdir / "raw" / step.log_name),
+            )
+            keywords["structure"] = structure_path
+            keywords["supercell"] = list(gpaw.supercell)
+            keywords["setup_dir"] = gpaw.setup_dir
+            script = render_gpaw_script(keywords, title=f"# {step.title}")
+            (jdir / "input" / step.gjf_name).write_text(script, encoding="utf-8")
+        spec = {
+            "structure": {
+                "symbols": list(structure.symbols),
+                "positions": [list(p) for p in structure.positions],
+                "cell": [list(row) for row in structure.cell],
+                "pbc": list(structure.pbc),
+            },
+            "supercell": list(gpaw.supercell),
+            "charge_mode": gpaw.charge_mode,
+            "setup_name": gpaw.setup_name,
+            "setup_dir": gpaw.setup_dir,
+            "sites": [
+                {
+                    "index": s.index,
+                    "element": s.element,
+                    "multiplicity": s.multiplicity,
+                    "equivalents": list(s.equivalents),
+                }
+                for s in sites
+            ],
+        }
+        (jdir / "input" / "gpaw_job.json").write_text(
+            json.dumps(spec, indent=2),
+            encoding="utf-8",
+        )
+        job = self.repo.get(job_id)
+        assert job is not None
+        job.work_path = str(jdir)
+        job.meta_json["steps"] = serialize_steps(steps)
+        job.meta_json["total_steps"] = len(steps)
+        job.meta_json["gpaw"] = spec
+        self.repo.update(job)
+        logger.info("Created GPAW ΔSCF job %s (%d steps)", job_id, len(steps))
+        return job_id
 
     def pause_queue(self) -> None:
         for job in self.repo.list_by_status(JobStatus.QUEUED):

@@ -16,7 +16,7 @@ Windows: `install.bat` / `run.bat`.
 ```text
 app.py / launch.py / pages/
 src/utils/      # paths, config, cancel, i18n, logging
-src/core/       # domain models, XPS math, Gaussian input text
+src/core/       # domain models, XPS math, Gaussian input, engines (Gaussian / GPAW)
 src/db/         # SQLite schema + repositories
 src/services/   # compounds, jobs, runner, parser, XPS, archive
 src/ui/         # thin Streamlit components
@@ -35,5 +35,8 @@ docs/           # DECISIONS, ARCHITECTURE, Instruction snapshots
 
 | Mode | When | Capabilities |
 |------|------|----------------|
-| `run` | Gaussian executable configured and found | queue + analyze |
+| `run` | Gaussian executable configured and found | queue + analyze (molecules) |
+| `gpaw` | GPAW import succeeds | periodic ΔSCF (CIF / POSCAR / extxyz) |
 | `analyze` | Mac / no Gaussian | import archive, parse logs, XPS plots |
+
+Engines share `DscfStep`, the job queue, the results table and the broadening in `src/core/xps.py`. `src/core/engines/` is the extension point (an ORCA planner would be a third module plus a runner). GPAW and ASE are imported lazily.

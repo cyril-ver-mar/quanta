@@ -127,19 +127,21 @@ def test_checkpoint_job_omits_oldchk() -> None:
     assert "%chk=job_1_neutral.chk" in text
 
 
-def test_corehole_route_fits_one_g09_line() -> None:
+def test_corehole_route_fits_g09_line_width() -> None:
     from src.core.dscf import DscfSettings, corehole_route, neutral_route
-    from src.core.gaussian_input import route_card, write_checkpoint_job
+    from src.core.gaussian_input import route_card, route_lines, write_checkpoint_job
 
     route = corehole_route(DscfSettings())
     assert route.startswith("UPBEPBE/")
     assert "uks" not in route.lower()
     assert "Integral" not in route
     assert "SCF=(XQC,MaxCyc=512)" in route
-    card = route_card(route)
-    assert card.startswith("# ")
-    assert len(card) <= 70
-    assert card.count("#") == 1
+    assert "pop=full" in route
+    assert "nosymm" in route
+    lines = route_lines(route)
+    assert lines
+    assert all(line.startswith("# ") and len(line) <= 70 for line in lines)
+    assert len(route_card(neutral_route(DscfSettings()))) <= 70
 
     text = write_checkpoint_job(
         title="core",

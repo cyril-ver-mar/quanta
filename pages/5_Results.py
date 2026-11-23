@@ -72,9 +72,17 @@ else:
         st.warning(t("results_no_summary", lang))
     else:
         if summary.get("protocol") == "dscf":
-            e0 = summary.get("e0_ha")
-            if e0 is not None:
-                st.metric(t("results_e0", lang), f"{e0:.8f}")
+            if summary.get("engine") == "gpaw" and summary.get("e0_ev") is not None:
+                st.metric(t("results_e0_ev", lang), f"{summary['e0_ev']:.4f} eV")
+            else:
+                e0 = summary.get("e0_ha")
+                if e0 is not None:
+                    st.metric(t("results_e0", lang), f"{e0:.8f}")
+            reference = summary.get("reference") or {}
+            if reference:
+                st.caption(reference.get("note") or t(f"settings_reference_{reference.get('mode', 'absolute')}", lang))
+            for note in summary.get("notes") or []:
+                st.caption(note)
         m1, m2, m3, m4 = st.columns(4)
         m1.metric(
             t("results_homo", lang),
@@ -108,6 +116,10 @@ else:
             ]
             if raw_bes and max(raw_bes) < 50.0:
                 st.warning(t("results_be_looks_valence", lang))
+            skipped = summary.get("curation_skipped") or []
+            if skipped:
+                st.warning(t("results_checks_skipped", lang))
+                st.caption("; ".join(str(s) for s in skipped[:8]))
         else:
             skipped = summary.get("curation_skipped") or []
             st.warning(t("results_no_core_levels", lang))

@@ -77,7 +77,13 @@ if elements:
     st.caption(t("review_elements", lang, list=el_list))
 
 st.subheader(t("review_3d", lang))
-render_molecule_3d(bundle.mol_block, fmt="mol", style=style)
+if bundle.periodic:
+    st.info(t("review_periodic", lang))
+    if bundle.cell:
+        st.caption(t("review_cell", lang))
+        st.code("\n".join(" ".join(f"{v:12.6f}" for v in row) for row in bundle.cell))
+else:
+    render_molecule_3d(bundle.mol_block, fmt="mol", style=style)
 
 with st.expander(t("review_atoms", lang), expanded=False):
     st.dataframe(pd.DataFrame(bundle.atoms), use_container_width=True, hide_index=True)
@@ -104,16 +110,19 @@ else:
     )
 
 with st.expander(t("review_gjf_preview", lang)):
-    try:
-        gjf = CompoundService().build_gjf_text(
-            comp,
-            nproc=settings.nproc,
-            mem_mb=settings.mem_mb,
-            chk_name=f"preview_{comp.id}.chk",
-        )
-        st.code(gjf, language="text")
-    except Exception as exc:
-        st.error(str(exc))
+    if bundle.periodic:
+        st.caption(t("review_no_gjf_periodic", lang))
+    else:
+        try:
+            gjf = CompoundService().build_gjf_text(
+                comp,
+                nproc=settings.nproc,
+                mem_mb=settings.mem_mb,
+                chk_name=f"preview_{comp.id}.chk",
+            )
+            st.code(gjf, language="text")
+        except Exception as exc:
+            st.error(str(exc))
 
 if st.button(t("review_create_job", lang)):
     proj = get_project()

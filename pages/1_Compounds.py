@@ -38,7 +38,10 @@ if project is None:
     st.stop()
 
 svc = CompoundService()
-uploaded = st.file_uploader(t("upload", lang), type=["mol2", "pdb", "sdf", "mol"])
+uploaded = st.file_uploader(
+    t("upload", lang),
+    type=["mol2", "pdb", "sdf", "mol", "cif", "poscar", "vasp", "xyz", "extxyz"],
+)
 name = st.text_input(t("compound_name", lang), value="")
 c1, c2 = st.columns(2)
 charge = c1.number_input(t("charge", lang), value=0, step=1)
@@ -55,6 +58,7 @@ if uploaded and st.button(t("import_btn", lang)):
             name=name or Path(uploaded.name).stem,
             charge=int(charge),
             multiplicity=int(mult),
+            source_name=uploaded.name,
         )
         project_service.add_compound_to_project(
             project, cid, label=name or Path(uploaded.name).stem
